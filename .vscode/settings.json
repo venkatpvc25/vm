@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "*.dbclient-js": "javascript",
+        "vm.h": "c",
+        "stdint.h": "c",
+        "compare": "c",
+        "cstdint": "c"
+    },
+    "cmake.buildDirectory": "${workspaceFolder}/build"
+}

@@ -1,0 +1,2 @@
+/usr/bin/ar qc libvm_lib.a CMakeFiles/vm_lib.dir/src/assembler.c.o CMakeFiles/vm_lib.dir/src/tokenizer.c.o CMakeFiles/vm_lib.dir/src/vm.c.o
+/usr/bin/ranlib libvm_lib.a
