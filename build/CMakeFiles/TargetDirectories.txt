@@ -1,6 +1,0 @@
-/home/venkat/git/c-projects/Virtual Machine/build/CMakeFiles/main.dir
-/home/venkat/git/c-projects/Virtual Machine/build/CMakeFiles/edit_cache.dir
-/home/venkat/git/c-projects/Virtual Machine/build/CMakeFiles/rebuild_cache.dir
-/home/venkat/git/c-projects/Virtual Machine/build/vm/CMakeFiles/vm_lib.dir
-/home/venkat/git/c-projects/Virtual Machine/build/vm/CMakeFiles/edit_cache.dir
-/home/venkat/git/c-projects/Virtual Machine/build/vm/CMakeFiles/rebuild_cache.dir
