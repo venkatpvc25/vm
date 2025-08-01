@@ -83,10 +83,24 @@ vm/CMakeFiles/vm_lib.dir/src/assembler.c.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling C source to assembly CMakeFiles/vm_lib.dir/src/assembler.c.s"
 	cd "/home/venkat/git/c-projects/Virtual Machine/build/vm" && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -S "/home/venkat/git/c-projects/Virtual Machine/vm/src/assembler.c" -o CMakeFiles/vm_lib.dir/src/assembler.c.s
 
+vm/CMakeFiles/vm_lib.dir/src/symbol.c.o: vm/CMakeFiles/vm_lib.dir/flags.make
+vm/CMakeFiles/vm_lib.dir/src/symbol.c.o: /home/venkat/git/c-projects/Virtual\ Machine/vm/src/symbol.c
+vm/CMakeFiles/vm_lib.dir/src/symbol.c.o: vm/CMakeFiles/vm_lib.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir="/home/venkat/git/c-projects/Virtual Machine/build/CMakeFiles" --progress-num=$(CMAKE_PROGRESS_2) "Building C object vm/CMakeFiles/vm_lib.dir/src/symbol.c.o"
+	cd "/home/venkat/git/c-projects/Virtual Machine/build/vm" && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT vm/CMakeFiles/vm_lib.dir/src/symbol.c.o -MF CMakeFiles/vm_lib.dir/src/symbol.c.o.d -o CMakeFiles/vm_lib.dir/src/symbol.c.o -c "/home/venkat/git/c-projects/Virtual Machine/vm/src/symbol.c"
+
+vm/CMakeFiles/vm_lib.dir/src/symbol.c.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing C source to CMakeFiles/vm_lib.dir/src/symbol.c.i"
+	cd "/home/venkat/git/c-projects/Virtual Machine/build/vm" && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -E "/home/venkat/git/c-projects/Virtual Machine/vm/src/symbol.c" > CMakeFiles/vm_lib.dir/src/symbol.c.i
+
+vm/CMakeFiles/vm_lib.dir/src/symbol.c.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling C source to assembly CMakeFiles/vm_lib.dir/src/symbol.c.s"
+	cd "/home/venkat/git/c-projects/Virtual Machine/build/vm" && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -S "/home/venkat/git/c-projects/Virtual Machine/vm/src/symbol.c" -o CMakeFiles/vm_lib.dir/src/symbol.c.s
+
 vm/CMakeFiles/vm_lib.dir/src/tokenizer.c.o: vm/CMakeFiles/vm_lib.dir/flags.make
 vm/CMakeFiles/vm_lib.dir/src/tokenizer.c.o: /home/venkat/git/c-projects/Virtual\ Machine/vm/src/tokenizer.c
 vm/CMakeFiles/vm_lib.dir/src/tokenizer.c.o: vm/CMakeFiles/vm_lib.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir="/home/venkat/git/c-projects/Virtual Machine/build/CMakeFiles" --progress-num=$(CMAKE_PROGRESS_2) "Building C object vm/CMakeFiles/vm_lib.dir/src/tokenizer.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir="/home/venkat/git/c-projects/Virtual Machine/build/CMakeFiles" --progress-num=$(CMAKE_PROGRESS_3) "Building C object vm/CMakeFiles/vm_lib.dir/src/tokenizer.c.o"
 	cd "/home/venkat/git/c-projects/Virtual Machine/build/vm" && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT vm/CMakeFiles/vm_lib.dir/src/tokenizer.c.o -MF CMakeFiles/vm_lib.dir/src/tokenizer.c.o.d -o CMakeFiles/vm_lib.dir/src/tokenizer.c.o -c "/home/venkat/git/c-projects/Virtual Machine/vm/src/tokenizer.c"
 
 vm/CMakeFiles/vm_lib.dir/src/tokenizer.c.i: cmake_force
@@ -97,10 +111,24 @@ vm/CMakeFiles/vm_lib.dir/src/tokenizer.c.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling C source to assembly CMakeFiles/vm_lib.dir/src/tokenizer.c.s"
 	cd "/home/venkat/git/c-projects/Virtual Machine/build/vm" && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -S "/home/venkat/git/c-projects/Virtual Machine/vm/src/tokenizer.c" -o CMakeFiles/vm_lib.dir/src/tokenizer.c.s
 
+vm/CMakeFiles/vm_lib.dir/src/utils.c.o: vm/CMakeFiles/vm_lib.dir/flags.make
+vm/CMakeFiles/vm_lib.dir/src/utils.c.o: /home/venkat/git/c-projects/Virtual\ Machine/vm/src/utils.c
+vm/CMakeFiles/vm_lib.dir/src/utils.c.o: vm/CMakeFiles/vm_lib.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir="/home/venkat/git/c-projects/Virtual Machine/build/CMakeFiles" --progress-num=$(CMAKE_PROGRESS_4) "Building C object vm/CMakeFiles/vm_lib.dir/src/utils.c.o"
+	cd "/home/venkat/git/c-projects/Virtual Machine/build/vm" && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT vm/CMakeFiles/vm_lib.dir/src/utils.c.o -MF CMakeFiles/vm_lib.dir/src/utils.c.o.d -o CMakeFiles/vm_lib.dir/src/utils.c.o -c "/home/venkat/git/c-projects/Virtual Machine/vm/src/utils.c"
+
+vm/CMakeFiles/vm_lib.dir/src/utils.c.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing C source to CMakeFiles/vm_lib.dir/src/utils.c.i"
+	cd "/home/venkat/git/c-projects/Virtual Machine/build/vm" && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -E "/home/venkat/git/c-projects/Virtual Machine/vm/src/utils.c" > CMakeFiles/vm_lib.dir/src/utils.c.i
+
+vm/CMakeFiles/vm_lib.dir/src/utils.c.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling C source to assembly CMakeFiles/vm_lib.dir/src/utils.c.s"
+	cd "/home/venkat/git/c-projects/Virtual Machine/build/vm" && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -S "/home/venkat/git/c-projects/Virtual Machine/vm/src/utils.c" -o CMakeFiles/vm_lib.dir/src/utils.c.s
+
 vm/CMakeFiles/vm_lib.dir/src/vm.c.o: vm/CMakeFiles/vm_lib.dir/flags.make
 vm/CMakeFiles/vm_lib.dir/src/vm.c.o: /home/venkat/git/c-projects/Virtual\ Machine/vm/src/vm.c
 vm/CMakeFiles/vm_lib.dir/src/vm.c.o: vm/CMakeFiles/vm_lib.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir="/home/venkat/git/c-projects/Virtual Machine/build/CMakeFiles" --progress-num=$(CMAKE_PROGRESS_3) "Building C object vm/CMakeFiles/vm_lib.dir/src/vm.c.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir="/home/venkat/git/c-projects/Virtual Machine/build/CMakeFiles" --progress-num=$(CMAKE_PROGRESS_5) "Building C object vm/CMakeFiles/vm_lib.dir/src/vm.c.o"
 	cd "/home/venkat/git/c-projects/Virtual Machine/build/vm" && /usr/bin/cc $(C_DEFINES) $(C_INCLUDES) $(C_FLAGS) -MD -MT vm/CMakeFiles/vm_lib.dir/src/vm.c.o -MF CMakeFiles/vm_lib.dir/src/vm.c.o.d -o CMakeFiles/vm_lib.dir/src/vm.c.o -c "/home/venkat/git/c-projects/Virtual Machine/vm/src/vm.c"
 
 vm/CMakeFiles/vm_lib.dir/src/vm.c.i: cmake_force
@@ -114,18 +142,22 @@ vm/CMakeFiles/vm_lib.dir/src/vm.c.s: cmake_force
 # Object files for target vm_lib
 vm_lib_OBJECTS = \
 "CMakeFiles/vm_lib.dir/src/assembler.c.o" \
+"CMakeFiles/vm_lib.dir/src/symbol.c.o" \
 "CMakeFiles/vm_lib.dir/src/tokenizer.c.o" \
+"CMakeFiles/vm_lib.dir/src/utils.c.o" \
 "CMakeFiles/vm_lib.dir/src/vm.c.o"
 
 # External object files for target vm_lib
 vm_lib_EXTERNAL_OBJECTS =
 
 vm/libvm_lib.a: vm/CMakeFiles/vm_lib.dir/src/assembler.c.o
+vm/libvm_lib.a: vm/CMakeFiles/vm_lib.dir/src/symbol.c.o
 vm/libvm_lib.a: vm/CMakeFiles/vm_lib.dir/src/tokenizer.c.o
+vm/libvm_lib.a: vm/CMakeFiles/vm_lib.dir/src/utils.c.o
 vm/libvm_lib.a: vm/CMakeFiles/vm_lib.dir/src/vm.c.o
 vm/libvm_lib.a: vm/CMakeFiles/vm_lib.dir/build.make
 vm/libvm_lib.a: vm/CMakeFiles/vm_lib.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir="/home/venkat/git/c-projects/Virtual Machine/build/CMakeFiles" --progress-num=$(CMAKE_PROGRESS_4) "Linking C static library libvm_lib.a"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir="/home/venkat/git/c-projects/Virtual Machine/build/CMakeFiles" --progress-num=$(CMAKE_PROGRESS_6) "Linking C static library libvm_lib.a"
 	cd "/home/venkat/git/c-projects/Virtual Machine/build/vm" && $(CMAKE_COMMAND) -P CMakeFiles/vm_lib.dir/cmake_clean_target.cmake
 	cd "/home/venkat/git/c-projects/Virtual Machine/build/vm" && $(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/vm_lib.dir/link.txt --verbose=$(VERBOSE)
 

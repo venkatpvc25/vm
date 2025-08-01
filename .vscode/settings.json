@@ -4,7 +4,9 @@
         "vm.h": "c",
         "stdint.h": "c",
         "compare": "c",
-        "cstdint": "c"
+        "cstdint": "c",
+        "stdlib.h": "c",
+        "tokenizer.h": "c"
     },
     "cmake.buildDirectory": "${workspaceFolder}/build"
 }

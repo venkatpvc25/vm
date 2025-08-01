@@ -154,6 +154,30 @@ src/assembler.c.s:
 	cd "/home/venkat/git/c-projects/Virtual Machine/build" && $(MAKE) $(MAKESILENT) -f vm/CMakeFiles/vm_lib.dir/build.make vm/CMakeFiles/vm_lib.dir/src/assembler.c.s
 .PHONY : src/assembler.c.s
 
+src/symbol.o: src/symbol.c.o
+.PHONY : src/symbol.o
+
+# target to build an object file
+src/symbol.c.o:
+	cd "/home/venkat/git/c-projects/Virtual Machine/build" && $(MAKE) $(MAKESILENT) -f vm/CMakeFiles/vm_lib.dir/build.make vm/CMakeFiles/vm_lib.dir/src/symbol.c.o
+.PHONY : src/symbol.c.o
+
+src/symbol.i: src/symbol.c.i
+.PHONY : src/symbol.i
+
+# target to preprocess a source file
+src/symbol.c.i:
+	cd "/home/venkat/git/c-projects/Virtual Machine/build" && $(MAKE) $(MAKESILENT) -f vm/CMakeFiles/vm_lib.dir/build.make vm/CMakeFiles/vm_lib.dir/src/symbol.c.i
+.PHONY : src/symbol.c.i
+
+src/symbol.s: src/symbol.c.s
+.PHONY : src/symbol.s
+
+# target to generate assembly for a file
+src/symbol.c.s:
+	cd "/home/venkat/git/c-projects/Virtual Machine/build" && $(MAKE) $(MAKESILENT) -f vm/CMakeFiles/vm_lib.dir/build.make vm/CMakeFiles/vm_lib.dir/src/symbol.c.s
+.PHONY : src/symbol.c.s
+
 src/tokenizer.o: src/tokenizer.c.o
 .PHONY : src/tokenizer.o
 
@@ -177,6 +201,30 @@ src/tokenizer.s: src/tokenizer.c.s
 src/tokenizer.c.s:
 	cd "/home/venkat/git/c-projects/Virtual Machine/build" && $(MAKE) $(MAKESILENT) -f vm/CMakeFiles/vm_lib.dir/build.make vm/CMakeFiles/vm_lib.dir/src/tokenizer.c.s
 .PHONY : src/tokenizer.c.s
+
+src/utils.o: src/utils.c.o
+.PHONY : src/utils.o
+
+# target to build an object file
+src/utils.c.o:
+	cd "/home/venkat/git/c-projects/Virtual Machine/build" && $(MAKE) $(MAKESILENT) -f vm/CMakeFiles/vm_lib.dir/build.make vm/CMakeFiles/vm_lib.dir/src/utils.c.o
+.PHONY : src/utils.c.o
+
+src/utils.i: src/utils.c.i
+.PHONY : src/utils.i
+
+# target to preprocess a source file
+src/utils.c.i:
+	cd "/home/venkat/git/c-projects/Virtual Machine/build" && $(MAKE) $(MAKESILENT) -f vm/CMakeFiles/vm_lib.dir/build.make vm/CMakeFiles/vm_lib.dir/src/utils.c.i
+.PHONY : src/utils.c.i
+
+src/utils.s: src/utils.c.s
+.PHONY : src/utils.s
+
+# target to generate assembly for a file
+src/utils.c.s:
+	cd "/home/venkat/git/c-projects/Virtual Machine/build" && $(MAKE) $(MAKESILENT) -f vm/CMakeFiles/vm_lib.dir/build.make vm/CMakeFiles/vm_lib.dir/src/utils.c.s
+.PHONY : src/utils.c.s
 
 src/vm.o: src/vm.c.o
 .PHONY : src/vm.o
@@ -214,9 +262,15 @@ help:
 	@echo "... src/assembler.o"
 	@echo "... src/assembler.i"
 	@echo "... src/assembler.s"
+	@echo "... src/symbol.o"
+	@echo "... src/symbol.i"
+	@echo "... src/symbol.s"
 	@echo "... src/tokenizer.o"
 	@echo "... src/tokenizer.i"
 	@echo "... src/tokenizer.s"
+	@echo "... src/utils.o"
+	@echo "... src/utils.i"
+	@echo "... src/utils.s"
 	@echo "... src/vm.o"
 	@echo "... src/vm.i"
 	@echo "... src/vm.s"

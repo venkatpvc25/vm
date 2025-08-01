@@ -3,9 +3,9 @@
 
 CMakeFiles/main.dir/main.c.o
  /home/venkat/git/c-projects/Virtual Machine/main.c
- /home/venkat/git/c-projects/Virtual Machine/vm/include/assembler.h
+ /home/venkat/git/c-projects/Virtual Machine/vm/include/pvm/assembler.h
+ /home/venkat/git/c-projects/Virtual Machine/vm/include/pvm/tokenizer.h
  /home/venkat/git/c-projects/Virtual Machine/vm/include/pvm/vm.h
- /home/venkat/git/c-projects/Virtual Machine/vm/include/tokenizer.h
  /usr/include/alloca.h
  /usr/include/endian.h
  /usr/include/features-time64.h

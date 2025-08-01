@@ -1,8 +1,12 @@
 file(REMOVE_RECURSE
   "CMakeFiles/vm_lib.dir/src/assembler.c.o"
   "CMakeFiles/vm_lib.dir/src/assembler.c.o.d"
+  "CMakeFiles/vm_lib.dir/src/symbol.c.o"
+  "CMakeFiles/vm_lib.dir/src/symbol.c.o.d"
   "CMakeFiles/vm_lib.dir/src/tokenizer.c.o"
   "CMakeFiles/vm_lib.dir/src/tokenizer.c.o.d"
+  "CMakeFiles/vm_lib.dir/src/utils.c.o"
+  "CMakeFiles/vm_lib.dir/src/utils.c.o.d"
   "CMakeFiles/vm_lib.dir/src/vm.c.o"
   "CMakeFiles/vm_lib.dir/src/vm.c.o.d"
   "libvm_lib.a"
