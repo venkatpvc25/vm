@@ -6,7 +6,9 @@
         "compare": "c",
         "cstdint": "c",
         "stdlib.h": "c",
-        "tokenizer.h": "c"
+        "tokenizer.h": "c",
+        "symbol.h": "c",
+        "stdbool.h": "c"
     },
     "cmake.buildDirectory": "${workspaceFolder}/build"
 }

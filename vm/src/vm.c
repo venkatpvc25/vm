@@ -366,7 +366,7 @@ static inline uint16_t mem_read(VM *vm, uint16_t address)
     return vm->mem[address];
 }
 
-void load_program(VM *vm, MachineCode *program, size_t size)
+void load_program(VM *vm, machine_code_t *program, size_t size)
 {
     const uint16_t origin = 0x3000;
 

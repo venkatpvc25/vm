@@ -5,6 +5,7 @@
 #include <pvm/vm.h>
 #include <pvm/tokenizer.h>
 #include <pvm/utils.h>
+#include <pvm/assembler.h>
 
 // bool read_image(char *file)
 // {
@@ -40,19 +41,16 @@ int main(int argc, char *argv[])
     FILE *file = fopen("code.asm", "r");
     char line[256];
 
-    token_array_t tokenLine;
-
     while (fgets(line, sizeof(line), file))
     {
         trim(line);
         // printf("Line: %s\n", line);
-        tokenizer(line, &tokenLine);
+        tokenizer(line);
     }
 
-    for (int i = 0; i < tokenLine.token_count; i++)
-    {
-        printf("[%s, %s]\n", token_type_to_string(tokenLine.tokens[i].type), tokenLine.tokens[i].lexeme);
-    }
+    assemble(&token_lines);
+
+    print_token_line();
 
     return 0;
 }

@@ -1,188 +1,230 @@
+#include <stdbool.h>
 
-// #include <string.h>
-// #include <stdlib.h>
-// #include <stdio.h>
+#include "pvm/assembler.h"
+#include "pvm/tokenizer.h"
+#include <limits.h>
 
-// #include "pvm/assembler.h"
+#define MAX_TOKENS 6
 
-// static int reg_index(const char *reg)
-// {
-//     for (int i = 0; i < 8; i++)
-//     {
-//         char name[4];
-//         sprintf(name, "R%d", i);
-//         if (strcmp(reg, name) == 0)
-//             return i;
-//     }
-//     return -1;
-// }
+typedef struct
+{
+    const char *mnemonic;                   // e.g., "ADD", "LD", "BR"
+    uint8_t opcode;                         // 4-bit LC-3 opcode (e.g., 0001 for ADD)
+    operand_type operand_types[MAX_TOKENS]; // Expected operand types (e.g., REG, IMM5)
+    int operand_count;                      // Number of operands
+    bool supports_immediate;                // e.g., ADD R1, R2, #5
+    bool is_pseudo;                         // If it's a pseudo-op (.ORIG, .FILL, etc.)
+} instruction_spec_t;
 
-// typedef struct
-// {
-//     char label[64];
-//     uint16_t address;
-// } Label;
+instruction_spec_t instruction_table[] = {
+    // ALU instructions
+    {"ADD", 0x1, {TYPE_REG, TYPE_REG, TYPE_REG}, 3, true, false},
+    {"AND", 0x5, {TYPE_REG, TYPE_REG, TYPE_REG}, 3, true, false},
+    {"NOT", 0x9, {TYPE_REG, TYPE_REG, TYPE_NONE}, 2, false, false},
 
-// static Label symbol_table[MAX_LABELS];
-// static int symbol_count = 0;
+    // Branch instructions (all map to opcode 0x0 with condition flags)
+    {"BR", 0x0, {TYPE_LABEL, TYPE_NONE, TYPE_NONE}, 1, true, false},
+    {"BRn", 0x0, {TYPE_LABEL, TYPE_NONE, TYPE_NONE}, 1, true, false},
+    {"BRz", 0x0, {TYPE_LABEL, TYPE_NONE, TYPE_NONE}, 1, true, false},
+    {"BRp", 0x0, {TYPE_LABEL, TYPE_NONE, TYPE_NONE}, 1, true, false},
+    {"BRnz", 0x0, {TYPE_LABEL, TYPE_NONE, TYPE_NONE}, 1, true, false},
+    {"BRnp", 0x0, {TYPE_LABEL, TYPE_NONE, TYPE_NONE}, 1, true, false},
+    {"BRzp", 0x0, {TYPE_LABEL, TYPE_NONE, TYPE_NONE}, 1, true, false},
+    {"BRnzp", 0x0, {TYPE_LABEL, TYPE_NONE, TYPE_NONE}, 1, true, false},
 
-// static void add_label(const char *label, uint16_t addr)
-// {
-//     strcpy(symbol_table[symbol_count].label, label);
-//     symbol_table[symbol_count].address = addr;
-//     symbol_count++;
-// }
+    // Jumps
+    {"JMP", 0xC, {TYPE_BASE_REG, TYPE_NONE, TYPE_NONE}, 1, false, false},
+    {"JSR", 0x4, {TYPE_LABEL, TYPE_NONE, TYPE_NONE}, 1, true, false},
+    {"JSRR", 0x4, {TYPE_BASE_REG, TYPE_NONE, TYPE_NONE}, 1, false, false},
 
-// static int lookup_label(const char *label)
-// {
-//     for (int i = 0; i < symbol_count; i++)
-//     {
-//         if (strcmp(symbol_table[i].label, label) == 0)
-//         {
-//             return symbol_table[i].address;
-//         }
-//     }
-//     fprintf(stderr, "Error: Unknown label %s\n", label);
-//     exit(1);
-// }
+    // Memory operations
+    {"LD", 0x2, {TYPE_REG, TYPE_LABEL, TYPE_NONE}, 2, true, false},
+    {"LDI", 0xA, {TYPE_REG, TYPE_LABEL, TYPE_NONE}, 2, true, false},
+    {"LDR", 0x6, {TYPE_REG, TYPE_BASE_REG, TYPE_OFFSET6}, 3, false, false},
+    {"LEA", 0xE, {TYPE_REG, TYPE_LABEL, TYPE_NONE}, 2, true, false},
+    {"ST", 0x3, {TYPE_REG, TYPE_LABEL, TYPE_NONE}, 2, true, false},
+    {"STI", 0xB, {TYPE_REG, TYPE_LABEL, TYPE_NONE}, 2, true, false},
+    {"STR", 0x7, {TYPE_REG, TYPE_BASE_REG, TYPE_OFFSET6}, 3, false, false},
 
-// static int parse_immediate(const char *lexeme, uint16_t pc)
-// {
-//     if (lexeme[0] == '#')
-//         return atoi(&lexeme[1]);
-//     if (lexeme[0] == 'x' || lexeme[0] == 'X')
-//         return (int)strtol(&lexeme[1], NULL, 16);
-//     return lookup_label(lexeme) - pc - 1; // PC-relative offset
-// }
+    // TRAP routines
+    {"TRAP", 0xF, {TYPE_TRAPVEC, TYPE_NONE, TYPE_NONE}, 1, false, false},
+    {"HALT", 0xF, {TYPE_NONE, TYPE_NONE, TYPE_NONE}, 0, false, false},
+    {"GETC", 0xF, {TYPE_NONE, TYPE_NONE, TYPE_NONE}, 0, false, false},
+    {"OUT", 0xF, {TYPE_NONE, TYPE_NONE, TYPE_NONE}, 0, false, false},
+    {"PUTS", 0xF, {TYPE_NONE, TYPE_NONE, TYPE_NONE}, 0, false, false},
+    {"IN", 0xF, {TYPE_NONE, TYPE_NONE, TYPE_NONE}, 0, false, false},
+    {"PUTSP", 0xF, {TYPE_NONE, TYPE_NONE, TYPE_NONE}, 0, false, false},
 
-// int assemble(TokenLine *lines, int line_count, MachineCode *output)
-// {
-//     uint16_t pc = 0x3000;
-//     int out_count = 0;
+    // Pseudo-ops (assembler directives)
+    {".ORIG", 0x00, {TYPE_NUMBER, TYPE_NONE, TYPE_NONE}, 1, false, true},
+    {".FILL", 0x00, {TYPE_NUMBER, TYPE_NONE, TYPE_NONE}, 1, false, true},
+    {".BLKW", 0x00, {TYPE_NUMBER, TYPE_NONE, TYPE_NONE}, 1, false, true},
+    {".STRINGZ", 0x00, {TYPE_STRING, TYPE_NONE, TYPE_NONE}, 1, false, true},
+    {".END", 0x00, {TYPE_NONE, TYPE_NONE, TYPE_NONE}, 0, false, true}};
 
-//     // First pass: collect labels
-//     for (int i = 0; i < line_count; ++i)
-//     {
-//         TokenLine *tl = &lines[i];
-//         if (tl->token_count == 0)
-//             continue;
+int instruction_spec_size = sizeof(instruction_table) / sizeof(instruction_table[0]);
 
-//         if (tl->tokens[0].type == TOKEN_LABEL)
-//         {
-//             add_label(tl->tokens[0].lexeme, pc);
-//             // Shift tokens left
-//             for (int j = 0; j < tl->token_count - 1; j++)
-//                 tl->tokens[j] = tl->tokens[j + 1];
-//             tl->token_count--;
-//         }
+instruction_spec_t find_spec(const char *opcode)
+{
+    instruction_spec_t INVALID_SPEC = {"", 0x00, {TYPE_NO_OPERAND}, 0, false, false};
+    for (int i = 0; i < instruction_spec_size; i++)
+    {
+        if (strcmp(opcode, instruction_table[i].mnemonic) == 0)
+        {
+            return instruction_table[i];
+        }
+    }
+    return INVALID_SPEC;
+}
 
-//         Token *op = &tl->tokens[0];
-//         if (op->type == TOKEN_DIRECTIVE)
-//         {
-//             if (strcmp(op->lexeme, ".ORIG") == 0)
-//             {
-//                 pc = parse_immediate(tl->tokens[1].lexeme, 0);
-//             }
-//             else if (strcmp(op->lexeme, ".FILL") == 0 || strcmp(op->lexeme, ".STRINGZ") == 0)
-//             {
-//                 pc++;
-//             }
-//             else if (strcmp(op->lexeme, ".BLKW") == 0)
-//             {
-//                 pc += parse_immediate(tl->tokens[1].lexeme, 0);
-//             }
-//         }
-//         else if (op->type == TOKEN_OPCODE)
-//         {
-//             pc++;
-//         }
-//     }
+bool is_valid_register(const char *str)
+{
+    return str && strlen(str) == 2 && str[0] == 'R' && str[1] >= '0' && str[1] <= '7';
+}
 
-//     // Second pass: generate code
-//     pc = 0x3000;
-//     for (int i = 0; i < line_count; ++i)
-//     {
-//         TokenLine *tl = &lines[i];
-//         if (tl->token_count == 0)
-//             continue;
+bool is_valid_imm5(const char *str)
+{
+    if (!str || str[0] != '#')
+        return false;
+    int val = atoi(str + 1);
+    return val >= -16 && val <= 15;
+}
 
-//         Token *op = &tl->tokens[0];
-//         uint16_t instr = 0;
+bool is_valid_offset6(const char *str)
+{
+    if (!str || str[0] != '#')
+        return false;
+    int val = atoi(str + 1);
+    return val >= -32 && val <= 31;
+}
 
-//         if (op->type == TOKEN_DIRECTIVE)
-//         {
-//             if (strcmp(op->lexeme, ".ORIG") == 0)
-//             {
-//                 pc = parse_immediate(tl->tokens[1].lexeme, 0);
-//             }
-//             else if (strcmp(op->lexeme, ".FILL") == 0)
-//             {
-//                 instr = parse_immediate(tl->tokens[1].lexeme, pc);
-//                 output[out_count++] = (MachineCode){pc++, instr};
-//             }
-//             else if (strcmp(op->lexeme, ".BLKW") == 0)
-//             {
-//                 int count = parse_immediate(tl->tokens[1].lexeme, pc);
-//                 for (int j = 0; j < count; j++)
-//                     output[out_count++] = (MachineCode){pc++, 0};
-//             }
-//             else if (strcmp(op->lexeme, ".STRINGZ") == 0)
-//             {
-//                 const char *str = tl->tokens[1].lexeme + 1;
-//                 for (int j = 0; str[j] && str[j] != '"'; j++)
-//                     output[out_count++] = (MachineCode){pc++, str[j]};
-//                 output[out_count++] = (MachineCode){pc++, 0};
-//             }
-//             continue;
-//         }
+bool is_valid_pc_offset9(const char *str)
+{
+    if (!str)
+        return false;
+    if (str[0] == '#')
+    {
+        int val = atoi(str + 1);
+        return val >= -256 && val <= 255;
+    }
+    return true; // Assume it's a label
+}
 
-//         if (op->type != TOKEN_OPCODE)
-//             continue;
+bool is_valid_pc_offset11(const char *str)
+{
+    if (!str)
+        return false;
+    if (str[0] == '#')
+    {
+        int val = atoi(str + 1);
+        return val >= -1024 && val <= 1023;
+    }
+    return true; // label
+}
 
-//         const char *opcode = op->lexeme;
+bool is_valid_base_reg(const char *str)
+{
+    return is_valid_register(str);
+}
 
-//         if (strcmp(opcode, "ADD") == 0 || strcmp(opcode, "AND") == 0)
-//         {
-//             instr |= strcmp(opcode, "ADD") == 0 ? 0x1000 : 0x5000;
-//             instr |= reg_index(tl->tokens[1].lexeme) << 9;
-//             instr |= reg_index(tl->tokens[2].lexeme) << 6;
-//             if (tl->tokens[3].type == TOKEN_REGISTER)
-//                 instr |= reg_index(tl->tokens[3].lexeme);
-//             else
-//                 instr |= 0x20 | (parse_immediate(tl->tokens[3].lexeme, pc) & 0x1F);
-//         }
-//         else if (strcmp(opcode, "NOT") == 0)
-//         {
-//             instr |= 0x903F;
-//             instr |= reg_index(tl->tokens[1].lexeme) << 9;
-//             instr |= reg_index(tl->tokens[2].lexeme) << 6;
-//         }
-//         else if (strcmp(opcode, "LD") == 0)
-//         {
-//             instr |= 0x2000;
-//             instr |= reg_index(tl->tokens[1].lexeme) << 9;
-//             instr |= (parse_immediate(tl->tokens[2].lexeme, pc) & 0x1FF);
-//         }
-//         else if (strcmp(opcode, "LEA") == 0)
-//         {
-//             instr |= 0xE000;
-//             instr |= reg_index(tl->tokens[1].lexeme) << 9;
-//             instr |= (parse_immediate(tl->tokens[2].lexeme, pc) & 0x1FF);
-//         }
-//         else if (strcmp(opcode, "BR") == 0 || strncmp(opcode, "BR", 2) == 0)
-//         {
-//             instr |= 0x0000;
-//             if (strchr(opcode, 'n'))
-//                 instr |= 0x0800;
-//             if (strchr(opcode, 'z'))
-//                 instr |= 0x0400;
-//             if (strchr(opcode, 'p'))
-//                 instr |= 0x0200;
-//             instr |= (parse_immediate(tl->tokens[1].lexeme, pc) & 0x1FF);
-//         }
+bool is_valid_trapvect8(const char *str)
+{
+    if (!str || str[0] != 'x')
+        return false;
+    int val = (int)strtol(str + 1, NULL, 16);
+    return val >= 0x00 && val <= 0xFF;
+}
 
-//         output[out_count++] = (MachineCode){pc++, instr};
-//     }
+bool is_valid_label(const char *str)
+{
+    if (!str || !isalpha(str[0]))
+        return false;
+    for (const char *p = str; *p; ++p)
+    {
+        if (!isalnum(*p) && *p != '_')
+            return false;
+    }
+    return true;
+}
 
-//     return out_count;
-// }
+bool is_valid_string(const char *str)
+{
+    return str && str[0] == '"' && str[strlen(str) - 1] == '"';
+}
+
+bool is_valid_number(const char *str)
+{
+    if (!str)
+        return false;
+    if (str[0] == '#')
+    {
+        int val = atoi(str + 1);
+        return val >= SHRT_MIN && val <= SHRT_MAX;
+    }
+    else if (str[0] == 'x' || str[0] == 'X')
+    {
+        int val = (int)strtol(str + 1, NULL, 16);
+        return val >= 0 && val <= 0xFFFF;
+    }
+    return false;
+}
+
+bool validate_operand(operand_type type, const char *value)
+{
+    switch (type)
+    {
+    case TYPE_REG:
+        return is_valid_register(value);
+    case TYPE_IMM5:
+        return is_valid_imm5(value);
+    case TYPE_OFFSET6:
+        return is_valid_offset6(value);
+    case TYPE_PCOFFSET9:
+        return is_valid_pc_offset9(value);
+    case TYPE_PCOFFSET11:
+        return is_valid_pc_offset11(value);
+    case TYPE_BASE_REG:
+        return is_valid_base_reg(value);
+    case TYPE_TRAPVEC:
+        return is_valid_trapvect8(value);
+    case TYPE_LABEL:
+        return is_valid_label(value);
+    case TYPE_STRING:
+        return is_valid_string(value);
+    case TYPE_NUMBER:
+        return is_valid_number(value);
+    case TYPE_NONE:
+        return true;
+    }
+    return false;
+}
+
+bool validate_instruction(token_line_t *tokens)
+{
+
+    for (int i = 0; i < tokens->line_count; i++)
+    {
+        instr_t instr = tokens->instr[i];
+        instruction_spec_t spec = find_spec(instr.opcode.value);
+        int expected_operands = spec.operand_count;
+        int token_index = 1;
+        int operand_index = 0;
+        while (operand_index < expected_operands)
+        {
+            if (!validate_operand(spec.operand_types[operand_index], instr.operands[operand_index].value))
+            {
+                printf("Invalid operand at position %d for instruction %s\n", operand_index + 1, spec.mnemonic);
+                return false;
+            }
+            token_index++;
+            operand_index++;
+        }
+    }
+
+    return true;
+}
+
+int assemble(token_line_t *tokens)
+{
+    validate_instruction(tokens);
+}

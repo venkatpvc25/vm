@@ -3,16 +3,22 @@
 
 #include <stdint.h>
 
-#define MAX_TOKENS_PER_LINE 10
-#define MAX_LINES 1024
-#define MAX_LABELS 256
+#include "tokenizer.h"
 
-typedef struct
+#define MAX_MACHINE_CODE 1024
+
+typedef struct machine_code
 {
     uint16_t address;
     uint16_t instruction;
-} MachineCode;
+} machine_code_t;
 
-// int assemble(TokenLine *lines, int line_count, MachineCode *output);
+typedef struct machine_code_array
+{
+    machine_code_t machine_code[MAX_MACHINE_CODE];
+    size_t machine_code_count;
+} machine_code_array_t;
+
+int assemble(token_line_t *lines);
 
 #endif

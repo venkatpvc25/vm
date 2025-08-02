@@ -6,10 +6,14 @@
 
 #include "pvm/tokenizer.h"
 #include "pvm/utils.h"
+#include "pvm/symbol.h"
 
 #define MAX_TOKENS_PER_LINE 10
 #define MAX_LINES 1024
 
+token_line_t token_lines;
+
+int line_number = 0;
 int token_count = 0;
 size_t orig = 0;
 static uint16_t current_address = 0;
@@ -66,6 +70,7 @@ static inline bool is_register(const char *cmnt) { return cmnt[0] == 'R' || cmnt
 static inline bool is_directive(const char *cmnt) { return cmnt[0] == '.'; }
 static inline bool is_comment(const char *cmnt) { return cmnt[0] == ';'; }
 static inline bool is_comma_separator(const char *cmnt) { return cmnt[0] == ','; }
+static inline bool is_immediate(const char *str) { return str[0] == 'x' || str[0] == 'X' || str[0] == '#'; }
 
 static inline bool is_instruction(const char *instr)
 {
@@ -92,101 +97,142 @@ char *read_token(char **str)
 
     if (**str == '\0' || **str == ';')
         return NULL;
-    if (**str == ',')
-    {
 
-        char *result = malloc(sizeof(char));
-        if (!result)
-            return NULL;
-
-        strncpy(result, *str, 1);
-        result[1] = '\0';
-        (*str)++;
-        return result;
-    }
     char *start = *str;
-    int str_len = 0;
+    int len = 0;
 
-    while (**str != '\0' && **str != ';' && **str != ',' && **str != ' ')
+    while (**str != '\0' && **str != ';' && **str != ',' && !isspace(**str))
     {
-        str_len++;
         (*str)++;
+        len++;
     }
 
-    char *result = malloc(str_len + 1);
-    if (!result)
+    if (len == 0)
+    {
+        if (**str == ',')
+        {
+            (*str)++;
+            skip_whitespace(str);
+            return read_token(str);
+        }
+        return NULL;
+    }
+
+    char *token = malloc(len + 1);
+    if (!token)
         return NULL;
 
-    strncpy(result, start, str_len);
-    result[str_len] = '\0';
+    strncpy(token, start, len);
+    token[len] = '\0';
 
-    return result;
+    skip_whitespace(str);
+    if (**str == ',')
+    {
+        (*str)++;
+    }
+
+    return token;
 }
 
-void parse_opcode(const char *opcode, const char **line, token_array_t *tokens)
+void parse_opcode(const char *word, const char **line)
 {
-    token_t *token = &(tokens->tokens[token_count++]);
-    token->type = TOKEN_OPCODE;
-    strcpy(token->lexeme, opcode);
-    char *word = NULL;
+    instr_t *current = &(token_lines.instr[token_lines.line_count++]);
+    current->line_number = token_lines.line_count - 1;
+    token_t *opcode = &(current->opcode);
+    opcode->type = TOKEN_OPCODE;
+    strcpy(opcode->value, word);
+    free(word);
+    word = NULL;
     while ((word = read_token(line)) != NULL)
     {
         if (is_comment(word))
             continue;
-        token_t *token = &(tokens->tokens[token_count++]);
-        if (is_hex(word))
-            token->type = TOKEN_HEX;
-        else if (is_const(word))
-            token->type = TOKEN_NUMBER;
-        else if (is_string(word))
-            token->type = TOKEN_STRING;
-        else if (is_comma_separator(word))
-            token->type = TOKEN_COMMA;
+
+        token_t *operand = &(current->operands[current->operand_count++]);
+        operand->type = TOKEN_UNKNOWN;
+        operand->operand_type = TYPE_NONE;
+
+        if (is_comma_separator(word))
+        {
+            operand->type = TOKEN_COMMA;
+            operand->operand_type = TYPE_NONE;
+        }
         else if (is_register(word))
-            token->type = TOKEN_REGISTER;
+        {
+            operand->type = TOKEN_REGISTER;
+            operand->operand_type = TYPE_REG;
+        }
+        else if (is_immediate(word))
+        {
+            operand->type = TOKEN_IMMEDIATE;
+            operand->operand_type = TYPE_IMM5;
+        }
+        else if (is_string(word))
+        {
+            operand->type = TOKEN_STRING;
+            operand->operand_type = TYPE_STRING;
+        }
+        else if (is_hex(word) || is_number(word))
+        {
+            operand->type = TOKEN_NUMBER;
+            operand->operand_type = TYPE_NUMBER;
+        }
         else
-            token->type = TOKEN_LABEL;
-        strcpy(token->lexeme, word);
+        {
+            operand->type = TOKEN_IDENTIFIER;
+            operand->operand_type = TYPE_LABEL;
+        }
+
+        strcpy(operand->value, word);
         free(word);
         word = NULL;
     }
 }
 
-void parse_directive(const char *opcode, const char **line, token_array_t *tokens)
+void parse_directive(const char *word, const char **line)
 {
-    token_t *token = &(tokens->tokens[token_count++]);
-    token->type = TOKEN_DIRECTIVE;
-    strcpy(token->lexeme, opcode);
-    char *word = NULL;
+    instr_t *current = &(token_lines.instr[token_lines.line_count++]);
+    current->line_number = token_lines.line_count - 1;
+    token_t *opcode = &(current->opcode);
+    opcode->type = TOKEN_DIRECTIVE;
+    strcpy(opcode->value, word);
+    free(word);
+    word = NULL;
     while ((word = read_token(line)) != NULL)
     {
         if (is_comment(word))
             continue;
-        if (strcmp(tokens->tokens[token_count - 1].lexeme, ".ORIG") == 0)
+        if (strcmp(opcode->value, ".ORIG") == 0)
         {
             orig = parse_number(word);
         }
 
-        token_t *token = &(tokens->tokens[token_count++]);
-        if (is_hex(word))
-            token->type = TOKEN_HEX;
-        else if (is_const(word))
-            token->type = TOKEN_NUMBER;
+        token_t *operand = &(current->operands[current->operand_count++]);
+        operand->type = TOKEN_UNKNOWN;
+        operand->operand_type = TYPE_NONE;
+        if (is_immediate(word))
+        {
+            operand->type = TOKEN_NUMBER;
+            operand->operand_type = TYPE_NUMBER;
+        }
         else if (is_string(word))
-            token->type = TOKEN_STRING;
+        {
+            operand->type = TOKEN_STRING;
+            operand->operand_type = TYPE_STRING;
+        }
         else
         {
-            token->type = TOKEN_LABEL;
+            operand->type = TOKEN_LABEL;
+            operand->operand_type = TYPE_LABEL;
         }
-        strcpy(token->lexeme, word);
+        strcpy(operand->value, word);
         free(word);
         word = NULL;
     }
 }
 
-void tokenizer(const char *line, token_array_t *tokens)
+void tokenizer(const char *line)
 {
-
     if (is_comment(line))
         return;
 
@@ -195,27 +241,86 @@ void tokenizer(const char *line, token_array_t *tokens)
     {
         if (is_directive(word))
         {
-            parse_directive(word, &line, tokens);
+            parse_directive(word, &line);
             continue;
         }
         if (is_instruction(word))
         {
-            parse_opcode(word, &line, tokens);
+            parse_opcode(word, &line);
             continue;
         }
 
-        token_t *token = &(tokens->tokens[token_count++]);
-        token->type = TOKEN_LABEL;
-        strcpy(token->lexeme, word);
-        if (!exists_symbol(tokens, word))
+        if (!exists_symbol(&token_lines, word))
         {
-            uint16_t address = orig + current_address;
-            add_symbol(tokens, word, address);
+            uint16_t address = orig + token_lines.line_count;
+            add_symbol(&token_lines, word, address);
         }
     }
-    current_address++;
-    tokens->token_count = token_count;
 }
+
+#include <stdio.h>
+
+void print_token(const token_t *token)
+{
+    if (token == NULL)
+    {
+        printf("NULL");
+        return;
+    }
+    printf("{ type: %s, lexeme: \"%s\" }", token_type_to_string(token->type), token->value);
+}
+
+void print_token_line()
+{
+    for (int n = 0; n < token_lines.line_count; n++)
+    {
+        instr_t instr = token_lines.instr[n];
+        printf("Opcode: ");
+        print_token(&instr.opcode);
+        printf("\n");
+
+        for (int i = 0; i < instr.operand_count; i++)
+        {
+            printf("  [%d] ", i);
+            print_token(&instr.operands[i]);
+            printf("\n");
+        }
+    }
+    print_symbol(token_lines.symbols, token_lines.symbol_count);
+}
+
+// void tokenizer(const char *line, token_array_t *tokens)
+// {
+
+//     if (is_comment(line))
+//         return;
+
+//     char *word = NULL;
+//     while ((word = read_token(&line)) != NULL) // <-- this is key
+//     {
+//         if (is_directive(word))
+//         {
+//             parse_directive(word, &line, tokens);
+//             continue;
+//         }
+//         if (is_instruction(word))
+//         {
+//             parse_opcode(word, &line, tokens);
+//             continue;
+//         }
+
+//         token_t *token = &(tokens->tokens[token_count++]);
+//         token->type = TOKEN_LABEL;
+//         strcpy(token->lexeme, word);
+//         if (!exists_symbol(tokens, word))
+//         {
+//             uint16_t address = orig + current_address;
+//             add_symbol(tokens, word, address);
+//         }
+//     }
+//     current_address++;
+//     tokens->token_count = token_count;
+// }
 
 // int main()
 // {
