@@ -2,55 +2,48 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#include <pvm/vm.h>
-#include <pvm/tokenizer.h>
-#include <pvm/utils.h>
-#include <pvm/assembler.h>
+#include "pvm/tokenizer.h"
+#include "pvm/assembler.h"
 
-// bool read_image(char *file)
-// {
-//     printf("reading file %s\n", file);
-//     return true;
-// }
+#include <termios.h>
+#include <unistd.h>
 
-const char *program =
-    "; sample LC-3 program\n"
-    ".ORIG x3000\n"
-    "START   LD   R1, VALUE\n"
-    "        ADD  R1, R1, #1\n"
-    "        ST   R1, VALUE\n"
-    "        HALT\n"
-    "VALUE   .FILL #5\n"
-    ".END";
+struct termios original_tio;
 
-int main(int argc, char *argv[])
+void disable_input_buffering()
 {
-    // TokenLine lines[MAX_LINES];
-    // MachineCode bytecode[MAX_LINES];
+    tcgetattr(STDIN_FILENO, &original_tio); // Get current terminal settings
+    struct termios new_tio = original_tio;
 
-    // int line_count = tokenize_program(program, lines);
-    // print_token_line(lines, line_count);
-    // int count = assemble(lines, line_count, bytecode);
+    new_tio.c_lflag &= ~ICANON;                 // Disable canonical mode
+    new_tio.c_lflag &= ~ECHO;                   // Disable echo
+    tcsetattr(STDIN_FILENO, TCSANOW, &new_tio); // Apply new settings
+}
 
-    // VM vm;
+void restore_input_buffering()
+{
+    tcsetattr(STDIN_FILENO, TCSANOW, &original_tio);
+}
 
-    // load_program(&vm, bytecode, 7);
+int main()
+{
+    token_line_t lines;
+    size_t line_count = 0;
 
-    // run(&vm);
+    FILE *f = fopen("traps.asm", "r");
+    tokenize_file(f, &lines, &line_count);
 
-    FILE *file = fopen("code.asm", "r");
-    char line[256];
+    // // First pass: label collection
+    // for (size_t i = 0; i < line_count; i++)
+    // {
+    //     collect_labels(&lines[i]);
+    // }
 
-    while (fgets(line, sizeof(line), file))
+    // Second pass: encoding
+    for (size_t i = 0; i < line_count; i++)
     {
-        trim(line);
-        // printf("Line: %s\n", line);
-        tokenizer(line);
+        encode_line(&lines.instr);
     }
 
-    assemble(&token_lines);
-
-    print_token_line();
-
-    return 0;
+    // emit_to_file("build/output.obj");
 }

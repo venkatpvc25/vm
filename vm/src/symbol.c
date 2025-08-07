@@ -1,6 +1,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
 
 #include "pvm/tokenizer.h"
 
@@ -34,9 +36,9 @@ symbol_entry_t *look_symbol(token_line_t *tokens, const char *symbol)
 
     for (int i = 0; i < tokens->symbol_count; i++)
     {
-        if (strcmp(tokens->symbols[i]->label, symbol))
+        if (strcmp(tokens->symbols[i]->label, symbol) == 0)
         {
-            return &tokens->symbols[i];
+            return tokens->symbols[i];
         }
     }
     return INVALID_SYMBOL;
@@ -48,7 +50,7 @@ bool exists_symbol(token_line_t *tokens, const char *symbol)
         return false;
     for (int i = 0; i < tokens->symbol_count; i++)
     {
-        if (strcmp(tokens->symbols[i]->label, symbol))
+        if (strcmp(tokens->symbols[i]->label, symbol) == 0)
         {
             return true;
         }

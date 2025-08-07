@@ -21,6 +21,7 @@ typedef enum
     TOKEN_HEX,
     TOKEN_NUMBER,
     TOKEN_COMMA,
+    TOKEN_TRAP,
     TOKEN_UNKNOWN
 } token_type;
 
@@ -71,8 +72,6 @@ typedef struct token_line
     size_t symbol_count;
 } token_line_t;
 
-extern token_line_t token_lines;
-
 // typedef struct token_line
 // {
 //     token_t opcode;
@@ -83,7 +82,8 @@ extern token_line_t token_lines;
 //     size_t symbol_count;
 // } token_line_t;
 
-void tokenizer(const char *line);
+token_line_t *tokenizer(const char *line, token_line_t *tokens);
 const char *token_type_to_string(token_type type);
-void print_token_line();
+void tokenize_file(FILE *file, token_line_t *lines, size_t *line_count);
+bool is_instruction(const char *word);
 #endif

@@ -1,230 +1,253 @@
 #include <stdbool.h>
+#include <limits.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdbool.h>
+#include <string.h>
+#include <termios.h>
+#include <unistd.h>
 
 #include "pvm/assembler.h"
 #include "pvm/tokenizer.h"
-#include <limits.h>
+#include "pvm/utils.h"
+#include "pvm/symbol.h"
+#include "pvm/vm.h"
+#include "pvm/validator.h"
 
-#define MAX_TOKENS 6
+// -------------------------------------------------
+// Globals
+// -------------------------------------------------
+token_line_t *tokens;
+uint16_t machine_code[1024];
+size_t machine_code_address = 0;
+uint16_t origin = 0x3000; // default
 
-typedef struct
+// -------------------------------------------------
+// Helper Functions
+// -------------------------------------------------
+
+static int register_id(const char *str)
 {
-    const char *mnemonic;                   // e.g., "ADD", "LD", "BR"
-    uint8_t opcode;                         // 4-bit LC-3 opcode (e.g., 0001 for ADD)
-    operand_type operand_types[MAX_TOKENS]; // Expected operand types (e.g., REG, IMM5)
-    int operand_count;                      // Number of operands
-    bool supports_immediate;                // e.g., ADD R1, R2, #5
-    bool is_pseudo;                         // If it's a pseudo-op (.ORIG, .FILL, etc.)
-} instruction_spec_t;
+    return strtol(str + 1, NULL, 10);
+}
+
+static bool is_register(const char *str)
+{
+    return str && (str[0] == 'R' || str[0] == 'r');
+}
+
+static void emit(uint16_t code)
+{
+    machine_code[machine_code_address++] = code;
+}
+
+// -------------------------------------------------
+// Instruction Encoding Helpers
+// -------------------------------------------------
+
+uint16_t get_register_value(const char *reg)
+{
+    if (!is_register(reg))
+        return 0xFFFF;
+    return reg[1] - '0';
+}
+
+instruction_spec_t find_spec(const char *mnemonic);
+
+// -------------------------------------------------
+// Encoder Functions
+// -------------------------------------------------
+
+void encode_add(token_t *operands)
+{
+    instruction_spec_t spec = find_spec("ADD");
+    uint16_t code = spec.opcode << 12;
+    code |= register_id(operands[0].value) << 9;
+    code |= register_id(operands[1].value) << 6;
+
+    if (is_register(operands[2].value))
+    {
+        code |= register_id(operands[2].value);
+    }
+    else
+    {
+        int imm5 = parse_number(operands[2].value);
+        code |= (1 << 5) | (imm5 & 0x1F);
+    }
+    emit(code);
+}
+
+void encode_and(token_t *operands)
+{
+    instruction_spec_t spec = find_spec("AND");
+
+    uint16_t code = spec.opcode << 12;
+    code |= register_id(operands[0].value) << 9;
+    code |= register_id(operands[1].value) << 6;
+
+    if (is_register(operands[2].value))
+    {
+        code |= register_id(operands[2].value);
+    }
+    else
+    {
+        int imm5 = parse_number(operands[2].value);
+        code |= (1 << 5) | (imm5 & 0x1F);
+    }
+    emit(code);
+}
+
+void encode_ld(token_t *operands)
+{
+    instruction_spec_t spec = find_spec("LD");
+
+    uint16_t code = spec.opcode << 12;
+    code |= register_id(operands[0].value) << 9;
+    uint16_t target = look_symbol(tokens, operands[1].value)->address;
+    int16_t offset = sign_extend(target - (machine_code_address + 1), 9);
+    code |= offset & 0x1FF;
+    emit(code);
+}
+
+void encode_ldi(token_t *operands)
+{
+    instruction_spec_t spec = find_spec("LDI");
+
+    uint16_t code = spec.opcode << 12;
+    code |= register_id(operands[0].value) << 9;
+    uint16_t target = look_symbol(tokens, operands[1].value)->address;
+    int16_t offset = sign_extend(target - (machine_code_address + 1), 9);
+    code |= offset & 0x1FF;
+    emit(code);
+}
+
+void encode_st(token_t *operands)
+{
+    instruction_spec_t spec = find_spec("ST");
+
+    uint16_t code = spec.opcode << 12;
+    code |= register_id(operands[0].value) << 9;
+    uint16_t target = look_symbol(tokens, operands[1].value)->address;
+    int16_t offset = sign_extend(target - (machine_code_address + 1), 9);
+    code |= offset & 0x1FF;
+    emit(code);
+}
+
+void encode_brnzp(token_t *operands)
+{
+    instruction_spec_t spec = find_spec("BRnzp");
+    uint16_t code = spec.opcode << 12 | 0x7 << 9;
+    uint16_t target = look_symbol(tokens, operands[0].value)->address;
+    int16_t offset = sign_extend(target - (machine_code_address + 1), 9);
+    code |= offset & 0x1FF;
+    emit(code);
+}
+
+void encode_brzp(token_t *operands)
+{
+    instruction_spec_t spec = find_spec("BRzp");
+    uint16_t code = spec.opcode << 12 | 0x3 << 9;
+    uint16_t target = look_symbol(tokens, operands[0].value)->address;
+    int16_t offset = sign_extend(target - (machine_code_address + 1), 9);
+    code |= offset & 0x1FF;
+    emit(code);
+}
+
+void encode_getc(token_t *ops) { emit(0xF020); }
+void encode_out(token_t *ops) { emit(0xF021); }
+void encode_puts(token_t *ops) { emit(0xF022); }
+void encode_in(token_t *ops) { emit(0xF023); }
+void encode_putsp(token_t *ops) { emit(0xF024); }
+void encode_halt(token_t *ops) { emit(0xF025); }
+void encode_ret(token_t *ops) { emit(0xC1C0); }
+
+void encode_org(token_t *ops)
+{
+    machine_code_address = parse_number(ops[0].value) - 0x3000;
+}
+void encode_fill(token_t *ops) { emit(parse_number(ops[0].value)); }
+void encode_blkw(token_t *ops) { machine_code_address += parse_number(ops[0].value); }
+void encode_end(token_t *ops) {} // Nothing needed
+
+// -------------------------------------------------
+// Instruction Specification
+// -------------------------------------------------
 
 instruction_spec_t instruction_table[] = {
-    // ALU instructions
-    {"ADD", 0x1, {TYPE_REG, TYPE_REG, TYPE_REG}, 3, true, false},
-    {"AND", 0x5, {TYPE_REG, TYPE_REG, TYPE_REG}, 3, true, false},
-    {"NOT", 0x9, {TYPE_REG, TYPE_REG, TYPE_NONE}, 2, false, false},
+    {"ADD", 0x1, {TYPE_REG, TYPE_REG, TYPE_REG}, 3, true, false, encode_add},
+    {"AND", 0x5, {TYPE_REG, TYPE_REG, TYPE_REG}, 3, true, false, encode_and},
+    {"NOT", 0x9, {TYPE_REG, TYPE_REG}, 2, false, false, encode_add},
 
-    // Branch instructions (all map to opcode 0x0 with condition flags)
-    {"BR", 0x0, {TYPE_LABEL, TYPE_NONE, TYPE_NONE}, 1, true, false},
-    {"BRn", 0x0, {TYPE_LABEL, TYPE_NONE, TYPE_NONE}, 1, true, false},
-    {"BRz", 0x0, {TYPE_LABEL, TYPE_NONE, TYPE_NONE}, 1, true, false},
-    {"BRp", 0x0, {TYPE_LABEL, TYPE_NONE, TYPE_NONE}, 1, true, false},
-    {"BRnz", 0x0, {TYPE_LABEL, TYPE_NONE, TYPE_NONE}, 1, true, false},
-    {"BRnp", 0x0, {TYPE_LABEL, TYPE_NONE, TYPE_NONE}, 1, true, false},
-    {"BRzp", 0x0, {TYPE_LABEL, TYPE_NONE, TYPE_NONE}, 1, true, false},
-    {"BRnzp", 0x0, {TYPE_LABEL, TYPE_NONE, TYPE_NONE}, 1, true, false},
+    {"BRnzp", 0x0, {TYPE_LABEL}, 1, true, false, encode_brnzp},
+    {"BRzp", 0x0, {TYPE_LABEL}, 1, true, false, encode_brzp},
 
-    // Jumps
-    {"JMP", 0xC, {TYPE_BASE_REG, TYPE_NONE, TYPE_NONE}, 1, false, false},
-    {"JSR", 0x4, {TYPE_LABEL, TYPE_NONE, TYPE_NONE}, 1, true, false},
-    {"JSRR", 0x4, {TYPE_BASE_REG, TYPE_NONE, TYPE_NONE}, 1, false, false},
+    {"LD", 0x2, {TYPE_REG, TYPE_LABEL}, 2, true, false, encode_ld},
+    {"LDI", 0xA, {TYPE_REG, TYPE_LABEL}, 2, true, false, encode_ldi},
+    {"ST", 0x3, {TYPE_REG, TYPE_LABEL}, 2, true, false, encode_st},
 
-    // Memory operations
-    {"LD", 0x2, {TYPE_REG, TYPE_LABEL, TYPE_NONE}, 2, true, false},
-    {"LDI", 0xA, {TYPE_REG, TYPE_LABEL, TYPE_NONE}, 2, true, false},
-    {"LDR", 0x6, {TYPE_REG, TYPE_BASE_REG, TYPE_OFFSET6}, 3, false, false},
-    {"LEA", 0xE, {TYPE_REG, TYPE_LABEL, TYPE_NONE}, 2, true, false},
-    {"ST", 0x3, {TYPE_REG, TYPE_LABEL, TYPE_NONE}, 2, true, false},
-    {"STI", 0xB, {TYPE_REG, TYPE_LABEL, TYPE_NONE}, 2, true, false},
-    {"STR", 0x7, {TYPE_REG, TYPE_BASE_REG, TYPE_OFFSET6}, 3, false, false},
+    {"RET", 0xC, {}, 0, false, false, encode_ret},
+    {"HALT", 0xF, {}, 0, false, false, encode_halt},
+    {"GETC", 0xF, {}, 0, false, false, encode_getc},
+    {"OUT", 0xF, {}, 0, false, false, encode_out},
+    {"PUTS", 0xF, {}, 0, false, false, encode_puts},
+    {"IN", 0xF, {}, 0, false, false, encode_in},
+    {"PUTSP", 0xF, {}, 0, false, false, encode_putsp},
 
-    // TRAP routines
-    {"TRAP", 0xF, {TYPE_TRAPVEC, TYPE_NONE, TYPE_NONE}, 1, false, false},
-    {"HALT", 0xF, {TYPE_NONE, TYPE_NONE, TYPE_NONE}, 0, false, false},
-    {"GETC", 0xF, {TYPE_NONE, TYPE_NONE, TYPE_NONE}, 0, false, false},
-    {"OUT", 0xF, {TYPE_NONE, TYPE_NONE, TYPE_NONE}, 0, false, false},
-    {"PUTS", 0xF, {TYPE_NONE, TYPE_NONE, TYPE_NONE}, 0, false, false},
-    {"IN", 0xF, {TYPE_NONE, TYPE_NONE, TYPE_NONE}, 0, false, false},
-    {"PUTSP", 0xF, {TYPE_NONE, TYPE_NONE, TYPE_NONE}, 0, false, false},
-
-    // Pseudo-ops (assembler directives)
-    {".ORIG", 0x00, {TYPE_NUMBER, TYPE_NONE, TYPE_NONE}, 1, false, true},
-    {".FILL", 0x00, {TYPE_NUMBER, TYPE_NONE, TYPE_NONE}, 1, false, true},
-    {".BLKW", 0x00, {TYPE_NUMBER, TYPE_NONE, TYPE_NONE}, 1, false, true},
-    {".STRINGZ", 0x00, {TYPE_STRING, TYPE_NONE, TYPE_NONE}, 1, false, true},
-    {".END", 0x00, {TYPE_NONE, TYPE_NONE, TYPE_NONE}, 0, false, true}};
+    {".ORIG", 0x0, {TYPE_NUMBER}, 1, false, true, encode_org},
+    {".FILL", 0x0, {TYPE_NUMBER}, 1, false, true, encode_fill},
+    {".BLKW", 0x0, {TYPE_NUMBER}, 1, false, true, encode_blkw},
+    {".END", 0x0, {}, 0, false, true, encode_end}};
 
 int instruction_spec_size = sizeof(instruction_table) / sizeof(instruction_table[0]);
 
-instruction_spec_t find_spec(const char *opcode)
+instruction_spec_t find_spec(const char *mnemonic)
 {
-    instruction_spec_t INVALID_SPEC = {"", 0x00, {TYPE_NO_OPERAND}, 0, false, false};
     for (int i = 0; i < instruction_spec_size; i++)
     {
-        if (strcmp(opcode, instruction_table[i].mnemonic) == 0)
-        {
+        if (strcmp(mnemonic, instruction_table[i].mnemonic) == 0)
             return instruction_table[i];
-        }
     }
-    return INVALID_SPEC;
+    instruction_spec_t invalid = {"", 0, {TYPE_NO_OPERAND}, 0, false, false, NULL};
+    return invalid;
 }
 
-bool is_valid_register(const char *str)
-{
-    return str && strlen(str) == 2 && str[0] == 'R' && str[1] >= '0' && str[1] <= '7';
-}
+// -------------------------------------------------
+// Assembler Driver
+// -------------------------------------------------
 
-bool is_valid_imm5(const char *str)
+void encode_instruction(const char *mnemonic, token_t *operands)
 {
-    if (!str || str[0] != '#')
-        return false;
-    int val = atoi(str + 1);
-    return val >= -16 && val <= 15;
-}
-
-bool is_valid_offset6(const char *str)
-{
-    if (!str || str[0] != '#')
-        return false;
-    int val = atoi(str + 1);
-    return val >= -32 && val <= 31;
-}
-
-bool is_valid_pc_offset9(const char *str)
-{
-    if (!str)
-        return false;
-    if (str[0] == '#')
+    instruction_spec_t spec = find_spec(mnemonic);
+    if (!spec.encode_fn)
     {
-        int val = atoi(str + 1);
-        return val >= -256 && val <= 255;
+        report_error(1, "Unknown opcode: %s", mnemonic);
     }
-    return true; // Assume it's a label
+    spec.encode_fn(operands);
 }
 
-bool is_valid_pc_offset11(const char *str)
+void handle_orig(token_line_t *line)
 {
-    if (!str)
-        return false;
-    if (str[0] == '#')
+    if (line->instr->opcode.type == TOKEN_DIRECTIVE)
     {
-        int val = atoi(str + 1);
-        return val >= -1024 && val <= 1023;
+        origin = parse_number(line->instr->opcode.value);
+        // set_current_address(origin);
     }
-    return true; // label
 }
 
-bool is_valid_base_reg(const char *str)
+void encode_line(token_line_t *line)
 {
-    return is_valid_register(str);
-}
-
-bool is_valid_trapvect8(const char *str)
-{
-    if (!str || str[0] != 'x')
-        return false;
-    int val = (int)strtol(str + 1, NULL, 16);
-    return val >= 0x00 && val <= 0xFF;
-}
-
-bool is_valid_label(const char *str)
-{
-    if (!str || !isalpha(str[0]))
-        return false;
-    for (const char *p = str; *p; ++p)
+    if (is_instruction(line->instr->opcode.value))
     {
-        if (!isalnum(*p) && *p != '_')
-            return false;
+        encode_instruction(line->instr->opcode.value, line->instr->operands);
     }
-    return true;
-}
-
-bool is_valid_string(const char *str)
-{
-    return str && str[0] == '"' && str[strlen(str) - 1] == '"';
-}
-
-bool is_valid_number(const char *str)
-{
-    if (!str)
-        return false;
-    if (str[0] == '#')
+    else if (strcmp(line->instr->opcode.value, ".ORIG") == 0)
     {
-        int val = atoi(str + 1);
-        return val >= SHRT_MIN && val <= SHRT_MAX;
+        handle_orig(line);
     }
-    else if (str[0] == 'x' || str[0] == 'X')
+    else
     {
-        int val = (int)strtol(str + 1, NULL, 16);
-        return val >= 0 && val <= 0xFFFF;
+        report_error(line->line_count, "Unknown directive or opcode");
     }
-    return false;
-}
-
-bool validate_operand(operand_type type, const char *value)
-{
-    switch (type)
-    {
-    case TYPE_REG:
-        return is_valid_register(value);
-    case TYPE_IMM5:
-        return is_valid_imm5(value);
-    case TYPE_OFFSET6:
-        return is_valid_offset6(value);
-    case TYPE_PCOFFSET9:
-        return is_valid_pc_offset9(value);
-    case TYPE_PCOFFSET11:
-        return is_valid_pc_offset11(value);
-    case TYPE_BASE_REG:
-        return is_valid_base_reg(value);
-    case TYPE_TRAPVEC:
-        return is_valid_trapvect8(value);
-    case TYPE_LABEL:
-        return is_valid_label(value);
-    case TYPE_STRING:
-        return is_valid_string(value);
-    case TYPE_NUMBER:
-        return is_valid_number(value);
-    case TYPE_NONE:
-        return true;
-    }
-    return false;
-}
-
-bool validate_instruction(token_line_t *tokens)
-{
-
-    for (int i = 0; i < tokens->line_count; i++)
-    {
-        instr_t instr = tokens->instr[i];
-        instruction_spec_t spec = find_spec(instr.opcode.value);
-        int expected_operands = spec.operand_count;
-        int token_index = 1;
-        int operand_index = 0;
-        while (operand_index < expected_operands)
-        {
-            if (!validate_operand(spec.operand_types[operand_index], instr.operands[operand_index].value))
-            {
-                printf("Invalid operand at position %d for instruction %s\n", operand_index + 1, spec.mnemonic);
-                return false;
-            }
-            token_index++;
-            operand_index++;
-        }
-    }
-
-    return true;
-}
-
-int assemble(token_line_t *tokens)
-{
-    validate_instruction(tokens);
 }

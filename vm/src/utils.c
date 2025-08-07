@@ -32,7 +32,7 @@ void skip_whitespace(char **str)
     }
 }
 
-uint16_t parse_number(const char *str)
+int16_t parse_number(const char *str)
 {
     long value = 0;
 
@@ -46,8 +46,15 @@ uint16_t parse_number(const char *str)
     }
     else
     {
-        return 0;
+        return value = strtol(str, NULL, 10);
     }
 
     return (uint16_t)value;
+}
+
+int16_t sign_extend(uint16_t x, int bit_count)
+{
+    if ((x >> (bit_count - 1)) & 1)
+        x |= (0xFFFF << bit_count);
+    return x;
 }

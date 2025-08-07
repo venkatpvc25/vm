@@ -1,0 +1,50 @@
+[
+{
+  "directory": "/home/venkat/git/c-projects/Virtual Machine/build",
+  "command": "/usr/bin/cc  -I\"/home/venkat/git/c-projects/Virtual Machine/vm/include\" -g -std=gnu99 -o CMakeFiles/main.dir/main.c.o -c \"/home/venkat/git/c-projects/Virtual Machine/main.c\"",
+  "file": "/home/venkat/git/c-projects/Virtual Machine/main.c",
+  "output": "CMakeFiles/main.dir/main.c.o"
+},
+{
+  "directory": "/home/venkat/git/c-projects/Virtual Machine/build/vm",
+  "command": "/usr/bin/cc  -I\"/home/venkat/git/c-projects/Virtual Machine/vm/include\" -g -std=gnu99 -o CMakeFiles/vm_lib.dir/src/assembler.c.o -c \"/home/venkat/git/c-projects/Virtual Machine/vm/src/assembler.c\"",
+  "file": "/home/venkat/git/c-projects/Virtual Machine/vm/src/assembler.c",
+  "output": "vm/CMakeFiles/vm_lib.dir/src/assembler.c.o"
+},
+{
+  "directory": "/home/venkat/git/c-projects/Virtual Machine/build/vm",
+  "command": "/usr/bin/cc  -I\"/home/venkat/git/c-projects/Virtual Machine/vm/include\" -g -std=gnu99 -o CMakeFiles/vm_lib.dir/src/error.c.o -c \"/home/venkat/git/c-projects/Virtual Machine/vm/src/error.c\"",
+  "file": "/home/venkat/git/c-projects/Virtual Machine/vm/src/error.c",
+  "output": "vm/CMakeFiles/vm_lib.dir/src/error.c.o"
+},
+{
+  "directory": "/home/venkat/git/c-projects/Virtual Machine/build/vm",
+  "command": "/usr/bin/cc  -I\"/home/venkat/git/c-projects/Virtual Machine/vm/include\" -g -std=gnu99 -o CMakeFiles/vm_lib.dir/src/symbol.c.o -c \"/home/venkat/git/c-projects/Virtual Machine/vm/src/symbol.c\"",
+  "file": "/home/venkat/git/c-projects/Virtual Machine/vm/src/symbol.c",
+  "output": "vm/CMakeFiles/vm_lib.dir/src/symbol.c.o"
+},
+{
+  "directory": "/home/venkat/git/c-projects/Virtual Machine/build/vm",
+  "command": "/usr/bin/cc  -I\"/home/venkat/git/c-projects/Virtual Machine/vm/include\" -g -std=gnu99 -o CMakeFiles/vm_lib.dir/src/tokenizer.c.o -c \"/home/venkat/git/c-projects/Virtual Machine/vm/src/tokenizer.c\"",
+  "file": "/home/venkat/git/c-projects/Virtual Machine/vm/src/tokenizer.c",
+  "output": "vm/CMakeFiles/vm_lib.dir/src/tokenizer.c.o"
+},
+{
+  "directory": "/home/venkat/git/c-projects/Virtual Machine/build/vm",
+  "command": "/usr/bin/cc  -I\"/home/venkat/git/c-projects/Virtual Machine/vm/include\" -g -std=gnu99 -o CMakeFiles/vm_lib.dir/src/utils.c.o -c \"/home/venkat/git/c-projects/Virtual Machine/vm/src/utils.c\"",
+  "file": "/home/venkat/git/c-projects/Virtual Machine/vm/src/utils.c",
+  "output": "vm/CMakeFiles/vm_lib.dir/src/utils.c.o"
+},
+{
+  "directory": "/home/venkat/git/c-projects/Virtual Machine/build/vm",
+  "command": "/usr/bin/cc  -I\"/home/venkat/git/c-projects/Virtual Machine/vm/include\" -g -std=gnu99 -o CMakeFiles/vm_lib.dir/src/validator.c.o -c \"/home/venkat/git/c-projects/Virtual Machine/vm/src/validator.c\"",
+  "file": "/home/venkat/git/c-projects/Virtual Machine/vm/src/validator.c",
+  "output": "vm/CMakeFiles/vm_lib.dir/src/validator.c.o"
+},
+{
+  "directory": "/home/venkat/git/c-projects/Virtual Machine/build/vm",
+  "command": "/usr/bin/cc  -I\"/home/venkat/git/c-projects/Virtual Machine/vm/include\" -g -std=gnu99 -o CMakeFiles/vm_lib.dir/src/vm.c.o -c \"/home/venkat/git/c-projects/Virtual Machine/vm/src/vm.c\"",
+  "file": "/home/venkat/git/c-projects/Virtual Machine/vm/src/vm.c",
+  "output": "vm/CMakeFiles/vm_lib.dir/src/vm.c.o"
+}
+]

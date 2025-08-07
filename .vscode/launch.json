@@ -19,27 +19,7 @@
                     "ignoreFailures": true
                 }
             ],
-            "miDebuggerPath": "/usr/bin/gdb"
-        },
-        {
-            "name": "Debug tokenizer",
-            "type": "cppdbg",
-            "request": "launch",
-            "program": "${workspaceFolder}/tokenizer", // or path to your built executable
-            "args": [],
-            "stopAtEntry": false,
-            "cwd": "${workspaceFolder}",
-            "environment": [],
-            "externalConsole": false,
-            "MIMode": "gdb",
-            "setupCommands": [
-                {
-                    "description": "Enable pretty-printing for gdb",
-                    "text": "-enable-pretty-printing",
-                    "ignoreFailures": true
-                }
-            ],
-            "preLaunchTask": "Tokenizer",
+            "preLaunchTask": "CMake Build",
             "miDebuggerPath": "/usr/bin/gdb"
         }
     ]

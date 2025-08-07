@@ -6,8 +6,13 @@
 #include <sys/types.h>
 #include <termios.h>
 #include <stdio.h>
+#include <stdio.h>
+#include <termios.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 #include "pvm/vm.h"
+#include "pvm/utils.h"
 
 static struct termios original_tio;
 
@@ -152,29 +157,6 @@ typedef struct
     };
 } Instruction;
 
-void disable_input_buffering()
-{
-    tcgetattr(STDIN_FILENO, &original_tio);
-    struct termios new_tio = original_tio;
-    new_tio.c_lflag &= ~ICANON & ~ECHO;
-    tcsetattr(STDIN_FILENO, TCSANOW, &new_tio);
-}
-
-void restore_input_buffering()
-{
-    tcsetattr(STDIN_FILENO, TCSANOW, &original_tio);
-}
-
-int check_key()
-{
-    fd_set readfds;
-    FD_ZERO(&readfds);
-    FD_SET(STDIN_FILENO, &readfds);
-
-    struct timeval timeout = {0};
-    return select(1, &readfds, NULL, NULL, &timeout) > 0;
-}
-
 void update_flags(VM *vm, uint16_t r)
 {
     if (vm->reg[r] == 0)
@@ -189,13 +171,6 @@ void update_flags(VM *vm, uint16_t r)
     {
         vm->reg[R_COND] = FL_POS;
     }
-}
-
-int16_t sign_extend(uint16_t x, int bit_count)
-{
-    if ((x >> (bit_count - 1)) & 1)
-        x |= (0xFFFF << bit_count);
-    return x;
 }
 
 Instruction decode(uint16_t cur_instr)
@@ -224,8 +199,15 @@ Instruction decode(uint16_t cur_instr)
             .dr = dr,
             .sr1 = sr1,
             .is_immediate = is_imm,
-            .imm5 = is_imm ? sign_extend(cur_instr & 0x1F, 5) : 0,
-            .sr2 = cur_instr & 0x7};
+        };
+        if (is_imm)
+        {
+            instr.add.imm5 = sign_extend(cur_instr & 0x1F, 5);
+        }
+        else
+        {
+            instr.add.sr2 = cur_instr & 0x7;
+        }
         break;
     }
 
@@ -257,9 +239,15 @@ Instruction decode(uint16_t cur_instr)
         instr.and = (bin_op){
             .dr = dr,
             .sr1 = sr1,
-            .is_immediate = is_imm,
-            .imm5 = is_imm ? sign_extend(cur_instr & 0x1F, 5) : 0,
-            .sr2 = (cur_instr & 0x7)};
+            .is_immediate = is_imm};
+        if (is_imm)
+        {
+            instr.and.imm5 = sign_extend(cur_instr & 0x1F, 5);
+        }
+        else
+        {
+            instr.and.sr2 = cur_instr & 0x7;
+        }
         break;
     }
 
@@ -343,6 +331,16 @@ Instruction decode(uint16_t cur_instr)
     return instr;
 }
 
+int check_key()
+{
+    fd_set readfds;
+    FD_ZERO(&readfds);
+    FD_SET(STDIN_FILENO, &readfds);
+
+    struct timeval timeout = {0}; // No wait (poll)
+    return select(1, &readfds, NULL, NULL, &timeout) > 0;
+}
+
 static inline void reg_write(VM *vm, uint16_t dr, uint16_t data) { vm->reg[dr] = data; }
 
 static inline uint16_t reg_read(VM *vm, uint16_t sr) { return vm->reg[sr]; }
@@ -351,28 +349,21 @@ static inline void mem_write(VM *vm, uint16_t dr, uint16_t data) { vm->mem[dr] =
 
 static inline uint16_t mem_read(VM *vm, uint16_t address)
 {
-    if (address == KBSR)
+    if (address == KBDR)
     {
-        if (check_key())
-        {
-            vm->mem[KBSR] = 1 << 15;
-            vm->mem[KBDR] = getchar();
-        }
-        else
-        {
-            vm->mem[KBSR] = 0; // Not ready
-        }
+        vm->mem[KBSR] = 0;
     }
+
     return vm->mem[address];
 }
 
-void load_program(VM *vm, machine_code_t *program, size_t size)
+void load_program(VM *vm, u_int16_t *program, size_t size)
 {
     const uint16_t origin = 0x3000;
 
     for (size_t i = 0; i < size; ++i)
     {
-        vm->mem[origin + i] = program[i].instruction;
+        vm->mem[origin + i] = program[i];
     }
 
     vm->reg[R_PC] = origin;
@@ -381,6 +372,43 @@ void load_program(VM *vm, machine_code_t *program, size_t size)
     for (int i = origin; i < origin + size; i++)
     {
         printf("mem[0x%04X] = 0x%04X\n", i, vm->mem[i]);
+    }
+}
+
+int getch_async()
+{
+    struct termios oldt, newt;
+    int ch;
+    int oldf;
+
+    tcgetattr(STDIN_FILENO, &oldt);
+    newt = oldt;
+    newt.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &newt);
+    oldf = fcntl(STDIN_FILENO, F_GETFL, 0);
+    fcntl(STDIN_FILENO, F_SETFL, oldf | O_NONBLOCK);
+
+    ch = getchar();
+
+    tcsetattr(STDIN_FILENO, TCSANOW, &oldt);
+    fcntl(STDIN_FILENO, F_SETFL, oldf);
+
+    if (ch != EOF)
+        return ch;
+    return 0;
+}
+
+void check_key_input(VM *vm)
+{
+    int c = getch_async();
+    if (c > 0)
+    {
+        vm->mem[KBSR] = 0x8000;
+        vm->mem[KBDR] = (uint16_t)c;
+    }
+    else
+    {
+        vm->mem[KBSR] = 0;
     }
 }
 
@@ -397,6 +425,17 @@ void run(VM *vm)
 
     while (running)
     {
+
+        int ch = getch_async();
+
+        if (vm->mem[KBSR] == 0)
+        {
+            if (ch > 0)
+            {
+                vm->mem[KBSR] = 0x8000;
+                vm->mem[KBDR] = (uint16_t)ch;
+            }
+        }
 
         uint16_t cur_instr = mem_read(vm, vm->reg[R_PC]);
         Instruction instr = decode(cur_instr);
@@ -452,6 +491,8 @@ void run(VM *vm)
             break;
 
         case OP_LDI:
+            printf("address: %i\n", vm->reg[R_PC] + instr.ldi.pc_offset9);
+            uint16_t t = mem_read(vm, vm->reg[R_PC] + instr.ldi.pc_offset9);
             reg_write(vm, instr.ldi.dr, mem_read(vm, mem_read(vm, vm->reg[R_PC] + instr.ldi.pc_offset9)));
             update_flags(vm, instr.ldi.dr);
             break;
@@ -468,6 +509,7 @@ void run(VM *vm)
 
         case OP_ST:
             mem_write(vm, vm->reg[R_PC] + instr.st.pc_offset9, vm->reg[instr.st.sr]);
+            update_flags(vm, instr.lea.dr);
             break;
 
         case OP_STI:
@@ -479,12 +521,20 @@ void run(VM *vm)
             break;
 
         case OP_TRAP:
+        {
             reg_write(vm, R_R7, vm->reg[R_PC]);
-            vm->reg[R_PC] = mem_read(vm, instr.trap.trap_vec8);
-            // Optional: Add HALT trap handler
-            if (instr.trap.trap_vec8 == 0x25) // HALT
+
+            uint16_t trap_vector = instr.trap.trap_vec8;
+            uint16_t trap_routine_address = mem_read(vm, trap_vector);
+
+            vm->reg[R_PC] = trap_routine_address;
+
+            if (trap_vector == 0x25)
+            {
                 running = 0;
+            }
             break;
+        }
 
         case OP_RES:
         case OP_RTI:

@@ -30,7 +30,7 @@ typedef struct
     uint16_t reg[R_COUNT];
 } VM;
 
-void load_program(VM *vm, machine_code_t *instructions, size_t count);
+void load_program(VM *vm, uint16_t *instructions, size_t count);
 void run(VM *vm);
 
 #endif

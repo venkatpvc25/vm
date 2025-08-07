@@ -5,6 +5,8 @@
 
 void trim(char *str);
 void skip_whitespace(char **str);
-uint16_t parse_number(const char *str);
+int16_t parse_number(const char *str);
+
+int16_t sign_extend(uint16_t x, int bit_count);
 
 #endif
