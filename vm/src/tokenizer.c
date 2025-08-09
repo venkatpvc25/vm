@@ -97,15 +97,22 @@ static char *read_token(char **str)
 // Parse Lines
 // -----------------------------------------------------------------------------
 
-static void parse_operands(instr_t *instr, const char **line)
+static void parse_operands(instr_t *instr, const char **line, bool is_orig)
 {
     char *word;
+
     while ((word = read_token((char **)line)) != NULL)
     {
         if (is_comment(word))
         {
             free(word);
             break;
+        }
+
+        if (is_orig)
+        {
+            orig = 0;
+            orig = parse_number(word);
         }
 
         token_t *operand = &instr->operands[instr->operand_count++];
@@ -144,6 +151,12 @@ static void parse_operands(instr_t *instr, const char **line)
 
 static void parse_instruction(const char *word, const char **line, token_line_t *tokens, token_type type)
 {
+    bool is_orig = false;
+    if (strcmp(word, ".ORIG") == 0)
+    {
+        is_orig = true;
+    }
+    orig++;
     instr_t *instr = &tokens->instr[tokens->line_count++];
     instr->line_number = tokens->line_count - 1;
 
@@ -151,7 +164,7 @@ static void parse_instruction(const char *word, const char **line, token_line_t 
     strncpy(instr->opcode.value, word, sizeof(instr->opcode.value));
     free((void *)word);
 
-    parse_operands(instr, line);
+    parse_operands(instr, line, is_orig);
 }
 
 // -----------------------------------------------------------------------------
@@ -174,15 +187,6 @@ token_line_t *tokenizer(const char *line, token_line_t *tokens)
 
         if (is_directive(word))
         {
-            if (strcmp(word, ".ORIG") == 0)
-            {
-                char *orig_val = read_token((char **)&line);
-                if (orig_val)
-                {
-                    orig = parse_number(orig_val);
-                    free(orig_val);
-                }
-            }
             parse_instruction(word, &line, tokens, TOKEN_DIRECTIVE);
         }
         else if (is_instruction(word))
@@ -198,7 +202,7 @@ token_line_t *tokenizer(const char *line, token_line_t *tokens)
             // Assume label
             if (!exists_symbol(tokens, word))
             {
-                uint16_t address = orig + tokens->line_count;
+                uint16_t address = orig;
                 add_symbol(tokens, word, address);
             }
             free(word);
@@ -252,11 +256,11 @@ void print_token(const token_t *token)
     printf("{ type: %s, value: \"%s\" }", token_type_to_string(token->type), token->value);
 }
 
-void print_token_line(token_line_t tokens)
+void print_token_line(token_line_t *tokens)
 {
-    for (int i = 0; i < tokens.line_count; i++)
+    for (int i = 0; i < tokens->line_count; i++)
     {
-        instr_t instr = tokens.instr[i];
+        instr_t instr = tokens->instr[i];
         printf("Line %d: ", instr.line_number);
         print_token(&instr.opcode);
         printf("\n");
@@ -269,7 +273,7 @@ void print_token_line(token_line_t tokens)
         }
     }
 
-    print_symbol(tokens.symbols, tokens.symbol_count);
+    print_symbol(tokens->symbols, tokens->symbol_count);
 }
 
 void tokenize_file(FILE *file, token_line_t *lines, size_t *line_count)
@@ -280,8 +284,9 @@ void tokenize_file(FILE *file, token_line_t *lines, size_t *line_count)
     while (fgets(buffer, sizeof(buffer), file))
     {
         trim(buffer);
-        tokenizer(buffer, &lines[*line_count]);
-        lines[*line_count].line_count = line_num++;
-        (*line_count)++;
+        printf("Line: %s\n", buffer);
+        if (is_comment(buffer))
+            continue;
+        tokenizer(buffer, lines);
     }
 }

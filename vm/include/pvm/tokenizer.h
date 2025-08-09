@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <stdint.h>
+#include <stdio.h>
 
 #define MAX_TOKENS_PER_LINE 5
 #define MAX_LINES 1024

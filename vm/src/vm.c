@@ -25,6 +25,8 @@ static struct termios original_tio;
 #define DDR 0xFE06
 #define MCR 0xFFFE
 
+#define DSR_READY_MASK 0x7FFF
+
 static inline uint16_t get_bit_at_position(uint16_t value, uint16_t position)
 {
     return (value >> position) & 1;
@@ -353,26 +355,30 @@ static inline uint16_t mem_read(VM *vm, uint16_t address)
     {
         vm->mem[KBSR] = 0;
     }
+    else if (address == DSR)
+    {
+        return vm->mem[DSR];
+    }
 
     return vm->mem[address];
 }
 
-void load_program(VM *vm, u_int16_t *program, size_t size)
+void load_program(VM *vm, uint16_t *program, size_t size)
 {
-    const uint16_t origin = 0x3000;
+    size_t i = 0;
 
-    for (size_t i = 0; i < size; ++i)
+    while (i < size)
     {
-        vm->mem[origin + i] = program[i];
+        uint16_t origin = program[i++];
+        printf("Loading block at origin 0x%04X\n", origin);
+
+        while (i < size && (program[i] & 0xF000) != 0xF000)
+        {
+            vm->mem[origin++] = program[i++];
+        }
     }
 
-    vm->reg[R_PC] = origin;
-
-    printf("PC = 0x%04X\n", vm->reg[R_PC]);
-    for (int i = origin; i < origin + size; i++)
-    {
-        printf("mem[0x%04X] = 0x%04X\n", i, vm->mem[i]);
-    }
+    vm->reg[R_PC] = 0x3000;
 }
 
 int getch_async()
@@ -412,6 +418,17 @@ void check_key_input(VM *vm)
     }
 }
 
+void trap_out(VM *vm)
+{
+    vm->mem[DSR] &= DSR_READY_MASK;
+    uint16_t ch = vm->reg[0];
+    putchar((char)ch);
+    fflush(stdout);
+    vm->mem[DSR] |= 0x8000;
+    vm->mem[DSR] &= DSR_READY_MASK;
+    vm->reg[R_PC] = vm->reg[R_R7];
+}
+
 void run(VM *vm)
 {
     enum
@@ -426,6 +443,8 @@ void run(VM *vm)
     while (running)
     {
 
+        uint16_t pc = vm->reg[R_PC];
+
         int ch = getch_async();
 
         if (vm->mem[KBSR] == 0)
@@ -437,100 +456,222 @@ void run(VM *vm)
             }
         }
 
-        uint16_t cur_instr = mem_read(vm, vm->reg[R_PC]);
+        uint16_t cur_instr = mem_read(vm, pc);
         Instruction instr = decode(cur_instr);
         vm->reg[R_PC]++;
+
+        if (pc == 0x0106)
+        {
+            trap_out(vm);
+            continue;
+        }
 
         switch (instr.op)
         {
         case OP_ADD:
+        {
+            uint16_t left = vm->reg[instr.add.sr1];
+            uint16_t result;
+
             if (instr.add.is_immediate)
-                reg_write(vm, instr.add.dr, vm->reg[instr.add.sr1] + instr.add.imm5);
+            {
+                printf("ADD (immediate): R%d = R%d (%d) + %d\n", instr.add.dr, instr.add.sr1, left, instr.add.imm5);
+                result = left + instr.add.imm5;
+            }
             else
-                reg_write(vm, instr.add.dr, vm->reg[instr.add.sr1] + vm->reg[instr.add.sr2]);
+            {
+                uint16_t right = vm->reg[instr.add.sr2];
+                printf("ADD (register): R%d = R%d (%d) + R%d (%d)\n", instr.add.dr, instr.add.sr1, left, instr.add.sr2, right);
+                result = left + right;
+            }
+
+            reg_write(vm, instr.add.dr, result);
             update_flags(vm, instr.add.dr);
             break;
+        }
 
         case OP_AND:
+        {
+            uint16_t left = vm->reg[instr.and.sr1];
+            uint16_t result;
+
             if (instr.and.is_immediate)
-                reg_write(vm, instr.and.dr, vm->reg[instr.and.sr1] & instr.and.imm5);
+            {
+                printf("AND (immediate): R%d = R%d (%d) & %d\n", instr.and.dr, instr.and.sr1, left, instr.and.imm5);
+                result = left & instr.and.imm5;
+            }
             else
-                reg_write(vm, instr.and.dr, vm->reg[instr.and.sr1] & vm->reg[instr.and.sr2]);
+            {
+                uint16_t right = vm->reg[instr.and.sr2];
+                printf("AND (register): R%d = R%d (%d) & R%d (%d)\n", instr.and.dr, instr.and.sr1, left, instr.and.sr2, right);
+                result = left & right;
+            }
+
+            reg_write(vm, instr.and.dr, result);
             update_flags(vm, instr.and.dr);
             break;
+        }
 
         case OP_NOT:
-            reg_write(vm, instr.not.dr, ~vm->reg[instr.not.sr]);
+        {
+            uint16_t value = vm->reg[instr.not.sr];
+            uint16_t result = ~value;
+            printf("NOT: R%d = ~R%d (%d) = %d\n", instr.not.dr, instr.not.sr, value, result);
+
+            reg_write(vm, instr.not.dr, result);
             update_flags(vm, instr.not.dr);
             break;
+        }
 
         case OP_BR:
-            if ((instr.br.n && (vm->reg[R_COND] & FL_NEG)) ||
-                (instr.br.z && (vm->reg[R_COND] & FL_ZRO)) ||
-                (instr.br.p && (vm->reg[R_COND] & FL_POS)))
+        {
+            uint16_t cond_flags = vm->reg[R_COND];
+            int16_t offset = instr.br.pc_offset9;
+
+            bool should_branch =
+                (instr.br.n && (cond_flags & FL_NEG)) ||
+                (instr.br.z && (cond_flags & FL_ZRO)) ||
+                (instr.br.p && (cond_flags & FL_POS));
+
+            printf("BR: cond_flags=0x%X, offset=%d, should_branch=%s\n", cond_flags, offset, should_branch ? "true" : "false");
+
+            if (should_branch)
             {
-                vm->reg[R_PC] += instr.br.pc_offset9;
+                vm->reg[R_PC] += offset;
+                printf("BR taken: new PC=0x%04X\n", vm->reg[R_PC]);
             }
             break;
+        }
 
         case OP_JMP:
-            vm->reg[R_PC] = vm->reg[instr.jmp.base_r];
+        {
+            uint16_t base_address = vm->reg[instr.jmp.base_r];
+            printf("JMP: PC <- R%d (0x%04X)\n", instr.jmp.base_r, base_address);
+            vm->reg[R_PC] = base_address;
             break;
+        }
 
         case OP_JSR:
-            reg_write(vm, R_R7, vm->reg[R_PC]);
+        {
+            uint16_t return_address = vm->reg[R_PC];
+            reg_write(vm, R_R7, return_address);
+
             if (instr.jsr.is_pc_offset11)
-                vm->reg[R_PC] += instr.jsr.pc_offset11;
+            {
+                int16_t offset = instr.jsr.pc_offset11;
+                vm->reg[R_PC] += offset;
+                printf("JSR (PC offset): PC <- PC + %d = 0x%04X\n", offset, vm->reg[R_PC]);
+            }
             else
-                vm->reg[R_PC] = vm->reg[instr.jsr.base_r];
+            {
+                uint16_t base_address = vm->reg[instr.jsr.base_r];
+                vm->reg[R_PC] = base_address;
+                printf("JSR (register): PC <- R%d (0x%04X)\n", instr.jsr.base_r, base_address);
+            }
             break;
+        }
 
         case OP_LD:
-            reg_write(vm, instr.ld.dr, mem_read(vm, vm->reg[R_PC] + instr.ld.pc_offset9));
+        {
+            uint16_t addr = vm->reg[R_PC] + instr.ld.pc_offset9;
+            uint16_t value = mem_read(vm, addr);
+            printf("LD: Load from 0x%04X value 0x%04X into R%d\n", addr, value, instr.ld.dr);
+
+            reg_write(vm, instr.ld.dr, value);
             update_flags(vm, instr.ld.dr);
             break;
+        }
 
         case OP_LDI:
-            printf("address: %i\n", vm->reg[R_PC] + instr.ldi.pc_offset9);
-            uint16_t t = mem_read(vm, vm->reg[R_PC] + instr.ldi.pc_offset9);
-            reg_write(vm, instr.ldi.dr, mem_read(vm, mem_read(vm, vm->reg[R_PC] + instr.ldi.pc_offset9)));
+        {
+            uint16_t addr1 = vm->reg[R_PC] + instr.ldi.pc_offset9;
+            uint16_t addr2 = mem_read(vm, addr1);
+            uint16_t value = mem_read(vm, addr2);
+
+            printf("LDI: addr1=0x%04X, addr2=0x%04X, value=0x%04X into R%d\n", addr1, addr2, value, instr.ldi.dr);
+
+            reg_write(vm, instr.ldi.dr, value);
             update_flags(vm, instr.ldi.dr);
             break;
+        }
 
         case OP_LDR:
-            reg_write(vm, instr.ldr.dr, mem_read(vm, vm->reg[instr.ldr.base_r] + instr.ldr.offset6));
+        {
+            uint16_t base = vm->reg[instr.ldr.base_r];
+            int16_t offset = instr.ldr.offset6;
+            uint16_t addr = base + offset;
+            uint16_t value = mem_read(vm, addr);
+
+            printf("LDR: Load from 0x%04X value 0x%04X into R%d\n", addr, value, instr.ldr.dr);
+
+            reg_write(vm, instr.ldr.dr, value);
             update_flags(vm, instr.ldr.dr);
             break;
+        }
 
         case OP_LEA:
-            reg_write(vm, instr.lea.dr, vm->reg[R_PC] + instr.lea.pc_offset9);
+        {
+            uint16_t addr = vm->reg[R_PC] + instr.lea.pc_offset9;
+            printf("LEA: Load address 0x%04X into R%d\n", addr, instr.lea.dr);
+
+            reg_write(vm, instr.lea.dr, addr);
             update_flags(vm, instr.lea.dr);
             break;
+        }
 
         case OP_ST:
-            mem_write(vm, vm->reg[R_PC] + instr.st.pc_offset9, vm->reg[instr.st.sr]);
-            update_flags(vm, instr.lea.dr);
+        {
+            uint16_t addr = vm->reg[R_PC] + instr.st.pc_offset9;
+            uint16_t value = vm->reg[instr.st.sr];
+            printf("ST: Store R%d (0x%04X) into memory address 0x%04X\n", instr.st.sr, value, addr);
+
+            mem_write(vm, addr, value);
             break;
+        }
 
         case OP_STI:
-            mem_write(vm, mem_read(vm, vm->reg[R_PC] + instr.st.pc_offset9), vm->reg[instr.st.sr]);
+        {
+            uint16_t pc = vm->reg[R_PC];
+            uint16_t addr1 = pc + instr.st.pc_offset9;
+            uint16_t addr2 = mem_read(vm, addr1);
+            uint16_t value = vm->reg[instr.st.sr];
+
+            printf("STI: pc=0x%04X, addr1=0x%04X (indirect), addr2=0x%04X, value=0x%04X (R%d)\n",
+                   pc, addr1, addr2, value, instr.st.sr);
+
+            mem_write(vm, addr2, value);
             break;
+        }
 
         case OP_STR:
-            mem_write(vm, vm->reg[instr.str.base_r] + instr.str.offset6, vm->reg[instr.str.sr]);
+        {
+            uint16_t base = vm->reg[instr.str.base_r];
+            int16_t offset = instr.str.offset6;
+            uint16_t addr = base + offset;
+            uint16_t value = vm->reg[instr.str.sr];
+
+            printf("STR: Store R%d (0x%04X) into memory address 0x%04X (base R%d + offset %d)\n",
+                   instr.str.sr, value, addr, instr.str.base_r, offset);
+
+            mem_write(vm, addr, value);
             break;
+        }
 
         case OP_TRAP:
         {
-            reg_write(vm, R_R7, vm->reg[R_PC]);
+            uint16_t return_address = vm->reg[R_PC];
+            reg_write(vm, R_R7, return_address);
 
             uint16_t trap_vector = instr.trap.trap_vec8;
             uint16_t trap_routine_address = mem_read(vm, trap_vector);
+
+            printf("TRAP: trap_vector=0x%02X, handler=0x%04X\n", trap_vector, trap_routine_address);
 
             vm->reg[R_PC] = trap_routine_address;
 
             if (trap_vector == 0x25)
             {
+                printf("TRAP HALT called, stopping execution\n");
                 running = 0;
             }
             break;
@@ -539,7 +680,8 @@ void run(VM *vm)
         case OP_RES:
         case OP_RTI:
         default:
-            // Invalid or OS-level instruction
+            // Invalid or OS-level instruction, do nothing
+            printf("Unknown or reserved opcode: 0x%X\n", instr.op);
             break;
         }
     }

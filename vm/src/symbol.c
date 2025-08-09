@@ -12,12 +12,20 @@ void add_symbol(token_line_t *tokens, const char *symbol, uint16_t address)
 {
     if (tokens->symbol_count >= MAX_SYMBOLS)
     {
+        fprintf(stderr, "Error: symbol table full, cannot add '%s'\n", symbol);
+        return;
+    }
+
+    if (exists_symbol(tokens, symbol))
+    {
+        fprintf(stderr, "Warning: symbol '%s' already exists, skipping\n", symbol);
         return;
     }
 
     symbol_entry_t *entry = malloc(sizeof(symbol_entry_t));
     if (!entry)
     {
+        fprintf(stderr, "Error: memory allocation failed for symbol '%s'\n", symbol);
         return;
     }
 
@@ -30,10 +38,6 @@ void add_symbol(token_line_t *tokens, const char *symbol, uint16_t address)
 
 symbol_entry_t *look_symbol(token_line_t *tokens, const char *symbol)
 {
-    symbol_entry_t *INVALID_SYMBOL = malloc(sizeof(symbol_entry_t));
-    memset(INVALID_SYMBOL->label, 0, sizeof(INVALID_SYMBOL->label));
-    INVALID_SYMBOL->address = -1;
-
     for (int i = 0; i < tokens->symbol_count; i++)
     {
         if (strcmp(tokens->symbols[i]->label, symbol) == 0)
@@ -41,13 +45,14 @@ symbol_entry_t *look_symbol(token_line_t *tokens, const char *symbol)
             return tokens->symbols[i];
         }
     }
-    return INVALID_SYMBOL;
+    return NULL;
 }
 
 bool exists_symbol(token_line_t *tokens, const char *symbol)
 {
     if (tokens->symbol_count == 0)
         return false;
+
     for (int i = 0; i < tokens->symbol_count; i++)
     {
         if (strcmp(tokens->symbols[i]->label, symbol) == 0)

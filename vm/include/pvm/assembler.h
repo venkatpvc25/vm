@@ -2,6 +2,7 @@
 #define ASSEMBLER_H
 
 #include <stdint.h>
+#include <stdlib.h>
 
 #include "tokenizer.h"
 
@@ -9,17 +10,16 @@
 
 #define MAX_TOKENS 6
 
-typedef struct machine_code
+typedef struct segment
 {
-    uint16_t address;
-    uint16_t instruction;
-} machine_code_t;
+    uint16_t origin;      // absolute start address
+    uint16_t *data;       // segment contents
+    size_t size;          // total size allocated (words)
+    size_t pos;           // current write index
+    struct segment *next; // linked list pointer
+} segment_t;
 
-typedef struct machine_code_array
-{
-    machine_code_t machine_code[MAX_MACHINE_CODE];
-    size_t machine_code_count;
-} machine_code_array_t;
+typedef void (*encode_fn_t)(segment_t **ctx, token_line_t *tokens, size_t idx);
 
 typedef struct
 {
@@ -29,10 +29,12 @@ typedef struct
     int operand_count;
     bool supports_immediate;
     bool is_pseudo;
-    void (*encode_fn)(token_t *operands);
+    encode_fn_t encode_fn;
 } instruction_spec_t;
 
-int assemble();
+segment_t *assemble(token_line_t *tokens);
 instruction_spec_t find_spec(const char *mnemonic);
-
+segment_t *create_segment(uint16_t origin, size_t capacity);
+segment_t *add_segment(segment_t **ctx, uint16_t origin);
+void load_segments_to_memory(segment_t *ctx, uint16_t *memory);
 #endif

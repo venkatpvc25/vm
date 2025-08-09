@@ -1,7 +1,8 @@
 #include <stdbool.h>
 #include <limits.h>
 
-#include "assembler.h"
+#include "pvm/assembler.h"
+#include "pvm/error.h"
 
 bool is_valid_register(const char *str)
 {
@@ -146,7 +147,7 @@ bool validate_instruction(token_line_t *tokens)
             {
                 report_error(
                     instr.line_number,
-                    "Invalid operand \"%s\" at position %d for instruction \"%s\"",
+                    "Invalid operand \"%s\" at position %d for instruction \"%s\"\n",
                     instr.operands[j].value, j + 1, spec.mnemonic);
                 return false;
             }
